@@ -1,21 +1,22 @@
-import type { MarketSnapshot, RuleViolation } from "../types.js";
+import type { MpeContext, RuleResult } from "../types.js";
 import { MPE_CONFIG } from "../config.js";
 
 /**
- * Checks whether the delay between the price timestamp and now
- * is within acceptable bounds, flagging processing lag.
+ * Delay Rule
+ * Cancels if the order is older than the max allowed delay.
+ * Under high volatility the delay threshold is halved.
  */
-export function checkDelay(snapshot: MarketSnapshot): RuleViolation[] {
-  const violations: RuleViolation[] = [];
-  const delayMs = Date.now() - snapshot.latestPrice.timestamp;
+export function delayRule(ctx: MpeContext): RuleResult {
+  const threshold =
+    ctx.volatility > MPE_CONFIG.VOLATILITY_THRESHOLD
+      ? MPE_CONFIG.VOLATILE_MAX_DELAY_MS
+      : MPE_CONFIG.MAX_DELAY_MS;
 
-  if (delayMs > MPE_CONFIG.MAX_DELAY_MS) {
-    violations.push({
-      rule: "delay",
-      severity: "warn",
-      message: `Processing delay of ${delayMs}ms exceeds max ${MPE_CONFIG.MAX_DELAY_MS}ms for "${snapshot.symbol}".`,
-    });
+  if (ctx.delay > threshold) {
+    return {
+      passed: false,
+      reason: `DELAY: ${ctx.delay}ms > threshold ${threshold}ms`,
+    };
   }
-
-  return violations;
+  return { passed: true, reason: "" };
 }
