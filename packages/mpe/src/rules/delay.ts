@@ -8,14 +8,14 @@ import { MPE_CONFIG } from "../config.js";
  */
 export function delayRule(ctx: MpeContext): RuleResult {
   const threshold =
-    ctx.volatility > MPE_CONFIG.VOLATILITY_THRESHOLD
+    ctx.regime === "HIGH_VOL"
       ? MPE_CONFIG.VOLATILE_MAX_DELAY_MS
       : MPE_CONFIG.MAX_DELAY_MS;
 
   if (ctx.delay > threshold) {
     return {
       passed: false,
-      reason: `DELAY: ${ctx.delay}ms > threshold ${threshold}ms`,
+      reason: `DELAY${ctx.regime === "HIGH_VOL" ? " [HIGH_VOL]" : ""}: ${ctx.delay}ms > threshold ${threshold}ms`,
     };
   }
   return { passed: true, reason: "" };

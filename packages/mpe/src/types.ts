@@ -17,16 +17,19 @@ export interface Market {
 
 //  Derived context (computed by ContextBuilder) 
 
+export type MarketRegime = "NORMAL" | "HIGH_VOL";
+
 export interface MpeContext {
   order: Order;
   market: Market;
   // derived
   spread: number;
   midPrice: number;
-  deviation: number;       // |order.price - oraclePrice| / oraclePrice
-  distanceFromMid: number; // |order.price - midPrice| / midPrice
-  delay: number;           // currentTime - order.timestamp  (ms)
-  volatility: number;      // |lastTradePrice - oraclePrice| / oraclePrice
+  deviation: number;
+  distanceFromMid: number;
+  delay: number;
+  volatility: number;
+  regime: MarketRegime;
 }
 
 //  Rule result  

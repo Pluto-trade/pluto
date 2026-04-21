@@ -9,14 +9,14 @@ import { MPE_CONFIG } from "../config.js";
 
 export function deviationRule(ctx: MpeContext): RuleResult {
   const threshold =
-    ctx.volatility > MPE_CONFIG.VOLATILITY_THRESHOLD
+    ctx.regime === "HIGH_VOL"
       ? MPE_CONFIG.VOLATILE_MAX_DEVIATION
       : MPE_CONFIG.MAX_DEVIATION;
 
   if (ctx.deviation > threshold) {
     return {
       passed: false,
-      reason: `DEVIATION: ${(ctx.deviation * 100).toFixed(3)}% > threshold ${(threshold * 100).toFixed(2)}%`,
+      reason: `DEVIATION${ctx.regime === "HIGH_VOL" ? " [HIGH_VOL]" : ""}: ${(ctx.deviation * 100).toFixed(3)}% > threshold ${(threshold * 100).toFixed(2)}%`,
     };
   }
   return { passed: true, reason: "" };
