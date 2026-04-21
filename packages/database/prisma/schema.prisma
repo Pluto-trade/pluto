@@ -11,8 +11,133 @@ generator client {
 }
 
 model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  walletAddress String   @unique
+  orders    Order[]
+  balances  Balances[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Balances {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  asset     String   // e.g. USDC, SOL
+  reserved    Decimal    // reserved balance
+  available Decimal    // available balance for trading
+  userId_asset  String   @unique @map("userId_asset") // composite unique key to ensure one record per user per asset; map to the actual column name in the database
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Market {
+  id        String   @id @default(uuid())
+  symbol      String @unique
+  baseAsset   String //e.g. Sol
+  quoteAsset  String //e.g. USDC
+  status      MarketStatus
+  tickSize    Decimal  // minimum price increment()
+  lotSize     Decimal  // minimum trade size increment(quantity)
+  minOrderSize Decimal  // minimum order size
+  pricePrecision Int    // number of decimal places for price
+  sizePrecision Int    // number of decimal places for size
+  makerFeeRate Decimal  // fee rate for makers (e.g. 0.001 for 0.1%)
+  takerFeeRate Decimal  // fee rate for takers (e.g. 0.002 for 0.2%)
+  orders    Order[]
+  trades    Trade[]
+  protectionDecisions ProtectionDecisions[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order{
+  id        String   @id @default(uuid())
+  side      OrderSide
+  price     Decimal?
+  size      Decimal
+  remainingSize Decimal
+  type      OrderType
+  status    OrderStatus
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  marketId  String
+  market    Market   @relation(fields: [marketId], references: [id])
+  tradesMaker Trade[] @relation("makerOrder")
+  tradesTaker Trade[] @relation("takerOrder")
+  protectionDecisionsTaker ProtectionDecisions[] @relation("takerOrder")
+  protectionDecisions ProtectionDecisions[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// todo
+model Trade{
+  id        String   @id @default(uuid())
+  price     Decimal     // quote per 1 base
+  size      Decimal     // amount of base asset traded
+  makerOrderId String
+  makerOrder   Order    @relation("makerOrder", fields: [makerOrderId], references: [id])
+  takerOrderId String
+  takerOrder   Order    @relation("takerOrder", fields: [takerOrderId], references: [id])
+  marketId  String
+  market    Market   @relation(fields: [marketId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProtectionDecisions {
+  id        String   @id @default(uuid())
+  takerOrderId String
+  takerOrder   Order    @relation("takerOrder", fields: [takerOrderId], references: [id])
+  decision DecisionType
+  reason ProtectionReason
+  priceDeviation Decimal? // how much % the order price deviates from the fair price
+  quotePrice Decimal? // the quote price at the time of decision
+  quoteAgeMs Int? // how old the quote price is in milliseconds, decisionTime - orderLastUpdatedAt
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id])
+  marketId  String
+  market    Market   @relation(fields: [marketId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+
+enum OrderSide {
+  BUY
+  SELL
+}
+
+enum OrderType {
+  LIMIT
+  MARKET
+}
+
+enum OrderStatus {
+  ACCEPTED
+  OPEN
+  PARTIALLY_FILLED
+  FILLED
+  CANCELLED
+}
+
+enum MarketStatus {
+  ACTIVE
+  PAUSED
+  DISABLED
+}
+
+enum DecisionType {
+  ALLOW
+  CANCEL
+}
+
+// todo
+enum ProtectionReason {
+  LARGE_ORDER
+  SUSPICIOUS_ACCOUNT
+  OTHER
 }
