@@ -4,13 +4,11 @@ import { buildContext } from "./contextBuilder.js";
 import { strongStaleRule } from "./rules/strongStale.js";
 import { deviationRule } from "./rules/deviation.js";
 import { delayRule } from "./rules/delay.js";
-import { volatilityRule } from "./rules/volatility.js";
 
 const RULES: Array<(ctx: MpeContext) => RuleResult> = [
   strongStaleRule,
   deviationRule,
   delayRule,
-  volatilityRule,
 ];
 
 
