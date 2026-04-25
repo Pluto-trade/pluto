@@ -15,12 +15,19 @@ export async function startPriceStream(symbols:string[]):Promise<void> {
         return FEED_IDS[s];
     });
     const eventSource = await client.getPriceUpdatesStream(feedIds,{ parsed:true });
-
+    eventSource.onopen = () => {
+        console.log("[oracle] SSE connected to Pyth");
+    };
+    eventSource.onerror = (err)=>{
+        console.error("[oracle] SSE error:", err);
+    }
     eventSource.onmessage = (event)=>{
         const data = JSON.parse(event.data);
         for (const item of data.parsed ?? []) {
             const exp = item.price.expo;
-            const symbol = Object.keys(FEED_IDS).find(k => FEED_IDS[k] === item.id);
+            const symbol = Object.keys(FEED_IDS).find(k =>
+                FEED_IDS[k].replace(/^0x/i, "") === item.id.replace(/^0x/i, "")
+            );
             if (symbol) {
                 priceCache.set(symbol,{
                     feedId: item.id,
@@ -31,6 +38,12 @@ export async function startPriceStream(symbols:string[]):Promise<void> {
             } 
         }
     };
+    eventSource.onopen = () => {
+        console.log("[oracle] SSE connected to Pyth");
+    };
+    eventSource.onerror = (err)=>{
+        console.error("[oracle] SSE error:", err);
+    }
 }
 
 

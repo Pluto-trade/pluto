@@ -1,3 +1,3 @@
 export const FEED_IDS: Record<string, string> = {
-    "SOL-USD":  "0xef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d",
+    "SOL-USD":  "ef0d8b6fda2ceba41da15d4095d1da392a0d2f8ed0c6c7bc0f4cfac8c280b56d",
 };
