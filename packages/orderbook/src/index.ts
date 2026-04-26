@@ -10,6 +10,7 @@ export {
 export { OrderQueue } from "./orderqueue.js";
 export { BookSide } from "./orderside.js";
 export type { DepthLevel } from "./orderside.js";
+export { OrderBook } from "./orderbook.js";
 export {
 	OrderSide,
 	OrderType,
