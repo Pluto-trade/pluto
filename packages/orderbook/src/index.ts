@@ -1,3 +1,12 @@
+export { ERROR, orderBookError } from "./errors.js";
+export type { ErrorCode } from "./errors.js";
+export {
+	createOrder,
+	createLimitOrder,
+	createMarketOrder,
+	applyFill,
+	cancelOrder,
+} from "./order.js";
 export {
 	OrderSide,
 	OrderType,
