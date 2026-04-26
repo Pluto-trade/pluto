@@ -7,6 +7,7 @@ export {
 	applyFill,
 	cancelOrder,
 } from "./order.js";
+export { OrderQueue } from "./orderqueue.js";
 export {
 	OrderSide,
 	OrderType,
