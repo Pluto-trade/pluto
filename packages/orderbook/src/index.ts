@@ -1,33 +1,22 @@
-// Public types extracted from the reference OrderBook contract — implement the class separately.
-
 export {
-	Side,
+	OrderSide,
 	OrderType,
-	TimeInForce,
+	OrderStatus,
 } from "./types.js";
 export type {
 	OrderBookError,
 	IError,
 	IOrder,
 	ILimitOrder,
-	IStopLimitOrder,
-	IStopMarketOrder,
-	StopOrder,
+	IMarketOrder,
 	CreateOrderOptions,
 	MarketOrderOptions,
 	LimitOrderOptions,
-	StopMarketOrderOptions,
-	StopLimitOrderOptions,
-	OCOOrderOptions,
 	OrderUpdatePrice,
 	OrderUpdateSize,
 	IProcessOrder,
 	ICancelOrder,
-	JournalLog,
-	OpLog,
 	BookLevelSnapshot,
-	StopBookSnapshot,
 	Snapshot,
-	OrderBookOptions,
 	BaseOrderInput,
 } from "./types.js";

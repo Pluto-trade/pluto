@@ -1,20 +1,23 @@
-export enum Side {
-	BUY = "buy",
-	SELL = "sell",
+/**
+ * In-memory / API shapes aligned with `packages/database/prisma/schema.prisma` (`Order`, enums).
+ * Use `string` or `number` for sizes and prices in the book; map `Decimal` at the OMS/DB layer.
+ */
+export enum OrderSide {
+	BUY = "BUY",
+	SELL = "SELL",
 }
 
 export enum OrderType {
-	LIMIT = "limit",
-	MARKET = "market",
-	OCO = "oco",
-	STOP_MARKET = "stop_market",
-	STOP_LIMIT = "stop_limit",
+	LIMIT = "LIMIT",
+	MARKET = "MARKET",
 }
 
-export enum TimeInForce {
-	GTC = "GTC",
-	IOC = "IOC",
-	FOK = "FOK",
+export enum OrderStatus {
+	ACCEPTED = "ACCEPTED",
+	OPEN = "OPEN",
+	PARTIALLY_FILLED = "PARTIALLY_FILLED",
+	FILLED = "FILLED",
+	CANCELLED = "CANCELLED",
 }
 
 export interface IError {
@@ -24,22 +27,18 @@ export interface IError {
 
 export type OrderBookError = IError;
 
-//order interface with necessary fields for the orderbook
 export interface IOrder {
 	id: string;
-	side: Side;
-	size: number;
+	userId: string;
+	marketId: string;
+	side: OrderSide;
 	type: OrderType;
-	price?: number;
-	timeInForce?: TimeInForce;
-	postOnly?: boolean;
-	time?: number;
-	origSize?: number;
-	takerQty?: number;
-	makerQty?: number;
-	ocoStopPrice?: number;
-	stopPrice?: number;
-	isOCO?: boolean;
+	price: number | null;
+	size: number;
+	remainingSize: number;
+	status: OrderStatus;
+	createdAt?: number;
+	updatedAt?: number;
 }
 
 export interface ILimitOrder extends IOrder {
@@ -47,62 +46,32 @@ export interface ILimitOrder extends IOrder {
 	price: number;
 }
 
-export type StopOrder = IStopLimitOrder | IStopMarketOrder;
-
-export interface IStopMarketOrder extends IOrder {
-	type: OrderType.STOP_MARKET;
-	stopPrice: number;
-}
-
-export interface IStopLimitOrder extends IOrder {
-	type: OrderType.STOP_LIMIT;
-	price: number;
-	stopPrice: number;
+export interface IMarketOrder extends IOrder {
+	type: OrderType.MARKET;
+	price: null;
 }
 
 export interface BaseOrderInput {
-	side: Side;
+	side: OrderSide;
 	size: number;
 }
 
 export interface MarketOrderOptions extends BaseOrderInput {
 	id?: string;
+	userId: string;
+	marketId: string;
 }
 
 export interface LimitOrderOptions extends BaseOrderInput {
 	id: string;
+	userId: string;
+	marketId: string;
 	price: number;
-	timeInForce?: TimeInForce;
-	ocoStopPrice?: number;
-}
-
-export interface StopMarketOrderOptions extends BaseOrderInput {
-	stopPrice: number;
-}
-
-export interface StopLimitOrderOptions extends BaseOrderInput {
-	id: string;
-	price: number;
-	stopPrice: number;
-	timeInForce?: TimeInForce;
-	isOCO?: boolean;
-}
-
-export interface OCOOrderOptions extends BaseOrderInput {
-	id: string;
-	price: number;
-	stopPrice: number;
-	stopLimitPrice: number;
-	timeInForce?: TimeInForce;
-	stopLimitTimeInForce?: TimeInForce;
 }
 
 export type CreateOrderOptions =
 	| (MarketOrderOptions & { type: OrderType.MARKET })
-	| (LimitOrderOptions & { type: OrderType.LIMIT })
-	| (StopMarketOrderOptions & { type: OrderType.STOP_MARKET })
-	| (StopLimitOrderOptions & { type: OrderType.STOP_LIMIT })
-	| (OCOOrderOptions & { type: OrderType.OCO });
+	| (LimitOrderOptions & { type: OrderType.LIMIT });
 
 export interface OrderUpdatePrice {
 	price: number;
@@ -116,39 +85,14 @@ export interface OrderUpdateSize {
 
 export interface IProcessOrder {
 	done: IOrder[];
-	activated: IOrder[];
 	partial: IOrder | null;
 	partialQuantityProcessed: number;
 	quantityLeft: number;
 	err: OrderBookError | null;
-	log?: OpLog;
 }
 
 export interface ICancelOrder {
 	order?: IOrder;
-	stopOrder?: IOrder;
-	log?: OpLog;
-}
-
-export type JournalLog =
-	| { op: "m"; o: MarketOrderOptions; opId?: number; ts?: number }
-	| { op: "l"; o: LimitOrderOptions; opId?: number; ts?: number }
-	| { op: "sm"; o: StopMarketOrderOptions; opId?: number; ts?: number }
-	| { op: "sl"; o: StopLimitOrderOptions; opId?: number; ts?: number }
-	| { op: "oco"; o: OCOOrderOptions; opId?: number; ts?: number }
-	| { op: "d"; o: { orderID: string }; opId?: number; ts?: number }
-	| {
-			op: "u";
-			o: { orderID: string; orderUpdate: OrderUpdatePrice | OrderUpdateSize };
-			opId?: number;
-			ts?: number;
-	  };
-
-export interface OpLog {
-	opId: number;
-	ts: number;
-	op: "m" | "l" | "sm" | "sl" | "oco" | "d" | "u";
-	o: unknown;
 }
 
 export interface BookLevelSnapshot {
@@ -156,21 +100,8 @@ export interface BookLevelSnapshot {
 	orders: ILimitOrder[];
 }
 
-export interface StopBookSnapshot {
-	bids: BookLevelSnapshot[];
-	asks: BookLevelSnapshot[];
-}
-
 export interface Snapshot {
 	bids: BookLevelSnapshot[];
 	asks: BookLevelSnapshot[];
-	stopBook?: StopBookSnapshot;
 	ts: number;
-	lastOp: number;
-}
-
-export interface OrderBookOptions {
-	snapshot?: Snapshot;
-	journal?: JournalLog[];
-	enableJournaling?: boolean;
 }
