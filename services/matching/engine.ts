@@ -4,102 +4,57 @@ import type {
   Order,
   OrderBookSnapshot,
   RestingOrder,
-  Trade,
-  ExecutionReport,
-  BookLevel,
 } from "./types";
+import type { IndexedOrder } from "./internalTypes.ts";
+import { executeMatching } from "./matchingLoop.ts";
+import type { OrderBookPort } from "./orderBookPort.ts";
+import { normalizeSymbol, preprocessOrder } from "./preprocess.ts";
+import { buildAcceptedResult, buildRejectedResult } from "./results.ts";
 
 export class MatchingEngine {
-  private bids: RestingOrder[] = [];
-  private asks: RestingOrder[] = [];
-  private ordersById: Map<string, RestingOrder> = new Map();
+  private readonly ordersById = new Map<string, IndexedOrder>();
+  private readonly orderBook: OrderBookPort;
+  private nextSequenceId = 1;
+
+  constructor(orderBook: OrderBookPort) {
+    this.orderBook = orderBook;
+  }
 
   addOrder(order: Order): MatchResult {
-    const trades: Trade[] = [];
-    const executionReports: ExecutionReport[] = [];
-    let remainingQuantity = order.quantity;
-    const oppositeOrders = order.side === "buy" ? this.asks : this.bids;
+    const preprocessResult = this.preprocessOrder(order);
 
-    this.sortBook(this.bids, "buy");
-    this.sortBook(this.asks, "sell");
-
-    while (remainingQuantity > 0 && oppositeOrders.length > 0) {
-      const bestOppositeOrder = oppositeOrders[0];
-
-      if (!this.isPriceMatch(order, bestOppositeOrder)) {
-        break;
-      }
-
-      const matchedQuantity = Math.min(
-        remainingQuantity,
-        bestOppositeOrder.remainingQuantity,
+    if (preprocessResult.error || !preprocessResult.order) {
+      return buildRejectedResult(
+        order.id,
+        preprocessResult.error ?? "Order preprocessing failed",
       );
-      const trade: Trade = {
-        tradeId: `${order.id}-${bestOppositeOrder.id}-${Date.now()}-${trades.length + 1}`,
-        symbol: order.symbol,
-        price: bestOppositeOrder.price,
-        quantity: matchedQuantity,
-        buyOrderId: order.side === "buy" ? order.id : bestOppositeOrder.id,
-        sellOrderId: order.side === "sell" ? order.id : bestOppositeOrder.id,
-        timestamp: Date.now(),
-      };
-
-      trades.push(trade);
-      remainingQuantity -= matchedQuantity;
-      bestOppositeOrder.remainingQuantity -= matchedQuantity;
-
-      executionReports.push({
-        orderId: bestOppositeOrder.id,
-        status:
-          bestOppositeOrder.remainingQuantity === 0 ? "filled" : "partially_filled",
-        filledQuantity: matchedQuantity,
-        remainingQuantity: bestOppositeOrder.remainingQuantity,
-      });
-
-      if (bestOppositeOrder.remainingQuantity === 0) {
-        oppositeOrders.shift();
-        this.ordersById.delete(bestOppositeOrder.id);
-      }
     }
 
-    executionReports.push({
-      orderId: order.id,
-      status: remainingQuantity === 0 ? "filled" : trades.length > 0 ? "partially_filled" : "accepted",
-      filledQuantity: order.quantity - remainingQuantity,
+    const incomingOrder = preprocessResult.order;
+    const { trades, executionReports, remainingQuantity } = executeMatching(
+      incomingOrder,
+      this.orderBook,
+      this.ordersById,
+    );
+
+    const result = buildAcceptedResult({
+      incomingOrder,
+      trades,
+      executionReports,
       remainingQuantity,
     });
 
-    if (remainingQuantity > 0) {
-      const restingOrder: RestingOrder = {
-        ...order,
-        remainingQuantity,
-      };
-
-      this.addToBook(restingOrder);
-      executionReports.push({
-        orderId: order.id,
-        status: "resting",
-        filledQuantity: order.quantity - remainingQuantity,
-        remainingQuantity,
-      });
-
-      return {
-        trades,
-        executionReports,
-        restingOrder,
-      };
+    if (result.restingOrder) {
+      this.addRestingOrder(result.restingOrder);
     }
 
-    return {
-      trades,
-      executionReports,
-    };
+    return result;
   }
 
   cancelOrder(orderId: string): CancelResult {
-    const existingOrder = this.ordersById.get(orderId);
+    const indexedOrder = this.ordersById.get(orderId);
 
-    if (!existingOrder) {
+    if (!indexedOrder) {
       return {
         found: false,
         executionReport: {
@@ -112,11 +67,25 @@ export class MatchingEngine {
       };
     }
 
-    const book = existingOrder.side === "buy" ? this.bids : this.asks;
-    const orderIndex = book.findIndex((order) => order.id === orderId);
+    const { order, side } = indexedOrder;
+    const restingQueue = this.orderBook.getQueueAtPrice(
+      order.symbol,
+      side,
+      order.price,
+    );
 
-    if (orderIndex !== -1) {
-      book.splice(orderIndex, 1);
+    if (restingQueue) {
+      const orderIndex = restingQueue.findIndex(
+        (restingOrder) => restingOrder.id === orderId,
+      );
+
+      if (orderIndex !== -1) {
+        restingQueue.splice(orderIndex, 1);
+      }
+
+      if (restingQueue.length === 0) {
+        this.orderBook.deletePriceLevel(order.symbol, side, order.price);
+      }
     }
 
     this.ordersById.delete(orderId);
@@ -127,71 +96,40 @@ export class MatchingEngine {
         orderId,
         status: "cancelled",
         filledQuantity: 0,
-        remainingQuantity: existingOrder.remainingQuantity,
+        remainingQuantity: order.remainingQuantity,
       },
     };
   }
 
   getOrderBookSnapshot(symbol: string): OrderBookSnapshot {
-    return {
-      symbol,
-      bids: this.buildLevels(this.bids.filter((order) => order.symbol === symbol)),
-      asks: this.buildLevels(this.asks.filter((order) => order.symbol === symbol)),
-    };
+    const normalizedSymbol = this.normalizeSymbol(symbol);
+    return this.orderBook.getOrderBookSnapshot(normalizedSymbol);
   }
 
-  private buildLevels(orders: RestingOrder[]): BookLevel[] {
-    const levels = new Map<number, { totalQuantity: number; orderCount: number }>();
+  private preprocessOrder(order: Order) {
+    const normalizedOrderId = order.id.trim();
+    const preprocessResult = preprocessOrder(
+      order,
+      this.nextSequenceId,
+      this.ordersById.has(normalizedOrderId),
+    );
 
-    for (const order of orders) {
-      const current = levels.get(order.price) ?? { totalQuantity: 0, orderCount: 0 };
-
-      current.totalQuantity += order.remainingQuantity;
-      current.orderCount += 1;
-
-      levels.set(order.price, current);
+    if (preprocessResult.order) {
+      this.nextSequenceId += 1;
     }
 
-    return Array.from(levels.entries()).map(([price, data]) => ({
-      price,
-      totalQuantity: data.totalQuantity,
-      orderCount: data.orderCount,
-    }));
+    return preprocessResult;
   }
 
-  private isPriceMatch(incomingOrder: Order, restingOrder: RestingOrder): boolean {
-    if (incomingOrder.symbol !== restingOrder.symbol) {
-      return false;
-    }
-
-    return incomingOrder.side === "buy"
-      ? incomingOrder.price >= restingOrder.price
-      : incomingOrder.price <= restingOrder.price;
+  private normalizeSymbol(symbol: string): string {
+    return normalizeSymbol(symbol);
   }
 
-  private addToBook(order: RestingOrder): void {
-    if (order.side === "buy") {
-      this.bids.push(order);
-      this.sortBook(this.bids, "buy");
-    } else {
-      this.asks.push(order);
-      this.sortBook(this.asks, "sell");
-    }
-
-    this.ordersById.set(order.id, order);
-  }
-
-  private sortBook(orders: RestingOrder[], side: "buy" | "sell"): void {
-    orders.sort((a, b) => {
-      if (a.symbol !== b.symbol) {
-        return a.symbol.localeCompare(b.symbol);
-      }
-
-      if (a.price !== b.price) {
-        return side === "buy" ? b.price - a.price : a.price - b.price;
-      }
-
-      return a.timestamp - b.timestamp;
+  private addRestingOrder(order: RestingOrder): void {
+    this.orderBook.addRestingOrder(order);
+    this.ordersById.set(order.id, {
+      order,
+      side: order.side,
     });
   }
 }

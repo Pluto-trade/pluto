@@ -1,3 +1,6 @@
+export { MatchingEngine } from "./engine";
+export type { OrderBookPort } from "./orderBookPort";
+
 export type {
   BookLevel,
   CancelResult,

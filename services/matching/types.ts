@@ -23,6 +23,7 @@ export interface Order {
 
 export interface RestingOrder extends Order {
   remainingQuantity: number;
+  sequenceId: number;
 }
 
 export interface Trade {
@@ -32,6 +33,8 @@ export interface Trade {
   quantity: number;
   buyOrderId: string;
   sellOrderId: string;
+  makerOrderId: string;
+  takerOrderId: string;
   timestamp: number;
 }
 
@@ -58,6 +61,8 @@ export interface OrderBookSnapshot {
 export interface MatchResult {
   trades: Trade[];
   executionReports: ExecutionReport[];
+  orderStatus: OrderStatus;
+  remainingQuantity: number;
   restingOrder?: RestingOrder;
 }
 
