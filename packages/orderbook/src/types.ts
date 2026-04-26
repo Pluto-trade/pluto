@@ -72,7 +72,6 @@ export interface MarketOrderOptions extends BaseOrderInput {
 export interface LimitOrderOptions extends BaseOrderInput {
 	id: string;
 	price: number;
-	postOnly?: boolean;
 	timeInForce?: TimeInForce;
 	ocoStopPrice?: number;
 }
