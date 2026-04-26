@@ -8,6 +8,8 @@ export {
 	cancelOrder,
 } from "./order.js";
 export { OrderQueue } from "./orderqueue.js";
+export { BookSide } from "./orderside.js";
+export type { DepthLevel } from "./orderside.js";
 export {
 	OrderSide,
 	OrderType,
