@@ -1,5 +1,4 @@
-import test from "node:test";
-import assert from "node:assert/strict";
+import { expect, test } from "vitest";
 
 import { MatchingEngine } from "./engine.ts";
 import type { OrderBookPort } from "./orderBookPort.ts";
@@ -142,15 +141,15 @@ test("normalizes symbol and stores resting order with sequence id", () => {
   const engine = new MatchingEngine(new InMemoryOrderBook());
   const result = engine.addOrder(buildOrder({ symbol: " btc-usd " }));
 
-  assert.equal(result.trades.length, 0);
-  assert.equal(result.orderStatus, "resting");
-  assert.equal(result.remainingQuantity, 5);
-  assert.equal(result.restingOrder?.symbol, "BTC-USD");
-  assert.equal(result.restingOrder?.sequenceId, 1);
+  expect(result.trades).toHaveLength(0);
+  expect(result.orderStatus).toBe("resting");
+  expect(result.remainingQuantity).toBe(5);
+  expect(result.restingOrder?.symbol).toBe("BTC-USD");
+  expect(result.restingOrder?.sequenceId).toBe(1);
 
   const snapshot = engine.getOrderBookSnapshot("btc-usd");
-  assert.equal(snapshot.symbol, "BTC-USD");
-  assert.deepEqual(snapshot.bids, [
+  expect(snapshot.symbol).toBe("BTC-USD");
+  expect(snapshot.bids).toEqual([
     { price: 100, totalQuantity: 5, orderCount: 1 },
   ]);
 });
@@ -159,16 +158,15 @@ test("rejects non-integer price and quantity during preprocessing", () => {
   const engine = new MatchingEngine(new InMemoryOrderBook());
 
   const invalidPriceResult = engine.addOrder(buildOrder({ price: 100.5 }));
-  assert.equal(invalidPriceResult.executionReports[0]?.status, "rejected");
-  assert.equal(invalidPriceResult.orderStatus, "rejected");
-  assert.equal(invalidPriceResult.remainingQuantity, 0);
-  assert.match(
-    invalidPriceResult.executionReports[0]?.message ?? "",
+  expect(invalidPriceResult.executionReports[0]?.status).toBe("rejected");
+  expect(invalidPriceResult.orderStatus).toBe("rejected");
+  expect(invalidPriceResult.remainingQuantity).toBe(0);
+  expect(invalidPriceResult.executionReports[0]?.message ?? "").toMatch(
     /positive integer/,
   );
 
   const invalidQuantityResult = engine.addOrder(buildOrder({ id: "ord-2", quantity: 2.5 }));
-  assert.equal(invalidQuantityResult.executionReports[0]?.status, "rejected");
+  expect(invalidQuantityResult.executionReports[0]?.status).toBe("rejected");
 });
 
 test("uses FIFO within a price level", () => {
@@ -203,18 +201,18 @@ test("uses FIFO within a price level", () => {
     }),
   );
 
-  assert.equal(takerResult.trades.length, 2);
-  assert.equal(takerResult.trades[0]?.sellOrderId, "maker-1");
-  assert.equal(takerResult.trades[0]?.quantity, 3);
-  assert.equal(takerResult.trades[0]?.makerOrderId, "maker-1");
-  assert.equal(takerResult.trades[0]?.takerOrderId, "taker-1");
-  assert.equal(takerResult.trades[1]?.sellOrderId, "maker-2");
-  assert.equal(takerResult.trades[1]?.quantity, 2);
-  assert.equal(takerResult.orderStatus, "filled");
-  assert.equal(takerResult.remainingQuantity, 0);
+  expect(takerResult.trades).toHaveLength(2);
+  expect(takerResult.trades[0]?.sellOrderId).toBe("maker-1");
+  expect(takerResult.trades[0]?.quantity).toBe(3);
+  expect(takerResult.trades[0]?.makerOrderId).toBe("maker-1");
+  expect(takerResult.trades[0]?.takerOrderId).toBe("taker-1");
+  expect(takerResult.trades[1]?.sellOrderId).toBe("maker-2");
+  expect(takerResult.trades[1]?.quantity).toBe(2);
+  expect(takerResult.orderStatus).toBe("filled");
+  expect(takerResult.remainingQuantity).toBe(0);
 
   const snapshot = engine.getOrderBookSnapshot("BTC-USD");
-  assert.deepEqual(snapshot.asks, [
+  expect(snapshot.asks).toEqual([
     { price: 101, totalQuantity: 2, orderCount: 1 },
   ]);
 });
@@ -250,9 +248,9 @@ test("chooses best price across price levels before matching", () => {
     }),
   );
 
-  assert.equal(result.trades.length, 1);
-  assert.equal(result.trades[0]?.price, 101);
-  assert.equal(result.trades[0]?.sellOrderId, "ask-101");
+  expect(result.trades).toHaveLength(1);
+  expect(result.trades[0]?.price).toBe(101);
+  expect(result.trades[0]?.sellOrderId).toBe("ask-101");
 });
 
 test("keeps books isolated by normalized symbol", () => {
@@ -278,11 +276,11 @@ test("keeps books isolated by normalized symbol", () => {
     }),
   );
 
-  assert.equal(result.trades.length, 0);
-  assert.equal(result.orderStatus, "resting");
-  assert.equal(result.remainingQuantity, 1);
-  assert.equal(result.restingOrder?.symbol, "BTC-USD");
-  assert.deepEqual(engine.getOrderBookSnapshot("ETH-USD").asks, [
+  expect(result.trades).toHaveLength(0);
+  expect(result.orderStatus).toBe("resting");
+  expect(result.remainingQuantity).toBe(1);
+  expect(result.restingOrder?.symbol).toBe("BTC-USD");
+  expect(engine.getOrderBookSnapshot("ETH-USD").asks).toEqual([
     { price: 200, totalQuantity: 1, orderCount: 1 },
   ]);
 });
@@ -293,8 +291,8 @@ test("assigns increasing sequence ids to resting orders", () => {
   const first = engine.addOrder(buildOrder({ id: "ord-1" }));
   const second = engine.addOrder(buildOrder({ id: "ord-2", price: 99, timestamp: BASE_TIME + 1 }));
 
-  assert.equal(first.restingOrder?.sequenceId, 1);
-  assert.equal(second.restingOrder?.sequenceId, 2);
+  expect(first.restingOrder?.sequenceId).toBe(1);
+  expect(second.restingOrder?.sequenceId).toBe(2);
 });
 
 test("returns partial-fill output with maker and taker ids", () => {
@@ -318,12 +316,12 @@ test("returns partial-fill output with maker and taker ids", () => {
     }),
   );
 
-  assert.equal(result.orderStatus, "partially_filled");
-  assert.equal(result.remainingQuantity, 2);
-  assert.equal(result.restingOrder?.id, "taker-1");
-  assert.equal(result.restingOrder?.remainingQuantity, 2);
-  assert.equal(result.trades[0]?.makerOrderId, "maker-1");
-  assert.equal(result.trades[0]?.takerOrderId, "taker-1");
+  expect(result.orderStatus).toBe("partially_filled");
+  expect(result.remainingQuantity).toBe(2);
+  expect(result.restingOrder?.id).toBe("taker-1");
+  expect(result.restingOrder?.remainingQuantity).toBe(2);
+  expect(result.trades[0]?.makerOrderId).toBe("maker-1");
+  expect(result.trades[0]?.takerOrderId).toBe("taker-1");
 });
 
 test("cancels a resting order and removes it from the book", () => {
@@ -339,8 +337,8 @@ test("cancels a resting order and removes it from the book", () => {
 
   const cancelResult = engine.cancelOrder("resting-1");
 
-  assert.equal(cancelResult.found, true);
-  assert.equal(cancelResult.executionReport.status, "cancelled");
-  assert.equal(cancelResult.executionReport.remainingQuantity, 2);
-  assert.deepEqual(engine.getOrderBookSnapshot("BTC-USD").bids, []);
+  expect(cancelResult.found).toBe(true);
+  expect(cancelResult.executionReport.status).toBe("cancelled");
+  expect(cancelResult.executionReport.remainingQuantity).toBe(2);
+  expect(engine.getOrderBookSnapshot("BTC-USD").bids).toEqual([]);
 });
