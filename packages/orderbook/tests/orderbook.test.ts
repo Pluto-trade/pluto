@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { OrderBook } from "../orderbook.js";
-import { ERROR } from "../errors.js";
-import { OrderSide, OrderStatus, LimitOrderOptions, MarketOrderOptions } from "../types.js";
+import { OrderBook } from "../src/orderbook.js";
+import { ERROR } from "../src/errors.js";
+import { OrderSide, OrderStatus, LimitOrderOptions, MarketOrderOptions } from "../src/types.js";
 
 function buy(id: string, size: number, price: number): LimitOrderOptions {
     return { id, userId: "ul", marketId: "m1", side: OrderSide.BUY, price, size };
