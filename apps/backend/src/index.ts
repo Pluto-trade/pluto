@@ -1,9 +1,11 @@
+import http from 'http';
 import express from 'express';
 import cors from 'cors';
 import marketsRouter from './routes/markets';
 import ordersRouter from './routes/orders';
 import orderbookRouter from './routes/orderbook';
 import balancesRouter from './routes/balances';
+import { createWsServer } from './ws';
 
 const app = express();
 
@@ -30,11 +32,18 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
+//  HTTP + WebSocket server (same port) 
 const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
+const httpServer = http.createServer(app);
+
+// Attach WS layer — all WS traffic goes to ws://localhost:3001/ws
+createWsServer(httpServer);
+
+httpServer.listen(PORT, () => {
   console.log(`🚀 Backend API running on http://localhost:${PORT}`);
+  console.log(`🔌 WebSocket server on  ws://localhost:${PORT}/ws`);
   console.log(`
-  Available endpoints:
+  Available HTTP endpoints:
   
   Markets:
     POST   /markets
@@ -60,5 +69,11 @@ app.listen(PORT, () => {
     GET    /balances/user/:userId
     POST   /balances/deposit
     POST   /balances/withdraw
-  `)
+
+  WebSocket channels (ws://localhost:${PORT}/ws):
+    subscribe orderbook  { marketId }
+    subscribe trades     { marketId }
+    subscribe ticker     { marketId }
+    subscribe orders     { userId }
+  `);
 });
