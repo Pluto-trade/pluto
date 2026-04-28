@@ -41,7 +41,7 @@ describe("BookSide - bids", ()=>{
     it("removes empty levels after the last order is cancelled",()=>{
         const bids = new BookSide(OrderSide.BUY);
         bids.append(lim("a",OrderSide.BUY, 100, 1));
-        bids.append(lim("a",OrderSide.BUY, 102, 1));
+        bids.append(lim("b",OrderSide.BUY, 102, 1));
         bids.remove("b");
         expect(bids.priceList()).toEqual([100]);
         expect(bids.bestPrice()).toBe(100);
@@ -89,6 +89,6 @@ describe ("BookSide - asks", ()=>{
             asks.append(lim(`o${i}`,OrderSide.SELL, p, 1)),
         );
         const d = asks.depth(3);
-        expect(d.map((l)=> l.price)).toEqual([102,101,100]);
+        expect(d.map((l)=> l.price)).toEqual([100,101,102]);
     });
 });

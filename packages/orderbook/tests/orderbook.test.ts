@@ -3,11 +3,11 @@ import { OrderBook } from "../src/orderbook.js";
 import { ERROR } from "../src/errors.js";
 import { OrderSide, OrderStatus, LimitOrderOptions, MarketOrderOptions } from "../src/types.js";
 
-function buy(id: string, size: number, price: number): LimitOrderOptions {
+function buy(id: string, price: number, size: number): LimitOrderOptions {
     return { id, userId: "ul", marketId: "m1", side: OrderSide.BUY, price, size };
 };
 
-function sell(id:string, size:number, price:number): LimitOrderOptions {
+function sell(id:string, price:number, size: number,): LimitOrderOptions {
     return { id,userId:"u1",marketId:"m1", side:OrderSide.SELL, price,size };
 };
 
@@ -53,21 +53,21 @@ describe("OrderBook - rejections" , () =>{
     });
     it("rejects invalid order size", () => {
         const book = new OrderBook("m1");
-        book.addLimit(buy("o1",100,1));
-        const r = book.addLimit(buy("o1",101,1));
+        book.addLimit(sell("s1",100,1));
+        const r = book.addLimit(buy("b1",100,0));
         expect(r.err?.code).toBe(ERROR.INVALID_SIZE);
         expect(book.totalOrders).toBe(1);
     });
     it("rejects a crossing buy", ()=>{
         const book = new OrderBook("m1");
-        book.addLimit(buy("b1",100,5));
+        book.addLimit(sell("b1",100,5));
         const r = book.addLimit(buy("o1",101,1));
         expect(r.err?.code).toBe(ERROR.LIMIT_WOULD_CROSS);
         expect(book.totalOrders).toBe(1);
     });
     it("rejects a crossing sell", ()=>{
         const book = new OrderBook("m1");
-        book.addLimit(sell("s1",101,5));
+        book.addLimit(buy("s1",101,5));
         const r = book.addLimit(sell("o1",100,1));
         expect(r.err?.code).toBe(ERROR.LIMIT_WOULD_CROSS);
         expect(book.totalOrders).toBe(1);
@@ -104,11 +104,11 @@ describe("OrderBook - rejections" , () =>{
             book.addLimit(buy("b1",100,5));
             book.addLimit(buy("b2",100,3));
             book.addLimit(buy("b3",100,1));
-            book.addLimit(buy("b4",100,2));
+            book.addLimit(buy("b4",99,2));
             const d = book.depth();
             expect(d.bids).toEqual([
-                { price: 100, volume: 8, orders: 2 },
-                { price: 99, volume: 1, orders: 1 },
+                { price: 100, volume: 9, orders: 3 },
+                { price: 99, volume: 2, orders: 1 },
             ]);
             expect(d.asks).toEqual([]);
         });
