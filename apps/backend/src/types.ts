@@ -1,8 +1,6 @@
 export enum OrderType {
   MARKET = 'market',
   LIMIT = 'limit',
-  STOP_LIMIT = 'stop_limit',
-  STOP_MARKET = 'stop_market',
 }
 
 export enum OrderSide {
