@@ -57,7 +57,7 @@ export class OrderQueue implements Iterable<ILimitOrder> {
 		return Array.from(this.orders.values());
 	}
 
-	[Symbol.iterator](): IterableIterator<ILimitOrder> {
+	[Symbol.iterator](): IterableIterator<ILimitOrder> { // iterator here is for ..of loop syntax which loops though each order in the array created
 		return this.orders.values();
 	}
 }
