@@ -1,5 +1,5 @@
 use anchor_lang::prelude::*;
-use crate::states::UserProfile,
+use crate::states::UserProfile;
 #[derive(Accounts)]
 pub struct CreateUser<'info>{
     #[account(
@@ -9,7 +9,7 @@ pub struct CreateUser<'info>{
         seeds=[b"user",user.key().as_ref()],
         bump,
     )]
-    pub user_profile:Account<'info,UserProfile>
+    pub user_profile:Account<'info,UserProfile>,
     #[account(mut)]
     pub user:Signer<'info>,
     pub system_program: program<'info, System>,

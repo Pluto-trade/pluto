@@ -1,5 +1,5 @@
-use crate::states::exchange::Exchangeconfig;
 use anchor_lang::prelude::*;
+use crate::states::exchange::Exchangeconfig;
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(

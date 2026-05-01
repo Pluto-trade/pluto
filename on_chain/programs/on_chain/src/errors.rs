@@ -4,6 +4,14 @@ use anchor_lang::prelude::*;
 pub enum ExchangeError {
     #[msg("The requested amount must be greater than zero.")]
     InvalidAmount,
+    #[msg("Math operation overflowed.")]
+    MathOverflow,
+    #[msg("The user profile does not match the signer.")]
+    InvalidUser,
+    #[msg("The token mint does not match the expected account.")]
+    InvalidMint,
+    #[msg("The token vault does not match the custody vault.")]
+    InvalidVault,
     #[msg("The account does not have enough available balance.")]
     InsufficientAvailableBalance,
     #[msg("The account does not have enough locked balance.")]
