@@ -40,7 +40,7 @@ export function buildAcceptedResult(params: {
     remainingQuantity,
   });
 
-  if (remainingQuantity > 0) {
+  if (remainingQuantity > 0 && incomingOrder.type === "limit") {
     const restingOrder: RestingOrder = {
       ...incomingOrder,
       remainingQuantity,
@@ -59,6 +59,15 @@ export function buildAcceptedResult(params: {
       orderStatus: trades.length > 0 ? "partially_filled" : "resting",
       remainingQuantity,
       restingOrder,
+    };
+  }
+
+  if (remainingQuantity > 0) {
+    return {
+      trades,
+      executionReports,
+      orderStatus: trades.length > 0 ? "partially_filled" : "accepted",
+      remainingQuantity,
     };
   }
 

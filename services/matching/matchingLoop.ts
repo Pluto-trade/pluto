@@ -119,6 +119,10 @@ function createTrade(
 }
 
 function isPriceMatch(incomingOrder: NormalizedOrder, restingPrice: number): boolean {
+  if (incomingOrder.type === "market") {
+    return true;
+  }
+
   return incomingOrder.side === "buy"
     ? incomingOrder.price >= restingPrice
     : incomingOrder.price <= restingPrice;

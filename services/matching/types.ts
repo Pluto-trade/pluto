@@ -1,6 +1,7 @@
+//Anyone can use these types to interact with the matching engine, but they should not be used internally within the engine's implementation.
 export type Side = "buy" | "sell";
 
-export type OrderType = "limit";
+export type OrderType = "limit" | "market";
 
 export type OrderStatus =
   | "accepted"
@@ -10,18 +11,28 @@ export type OrderStatus =
   | "cancelled"
   | "rejected";
 
-export interface Order {
+export interface BaseOrder {
   id: string;
   userId: string;
   symbol: string;
   side: Side;
-  type: OrderType;
-  price: number;
   quantity: number;
   timestamp: number;
 }
 
-export interface RestingOrder extends Order {
+export interface LimitOrder extends BaseOrder {
+  type: "limit";
+  price: number;
+}
+
+export interface MarketOrder extends BaseOrder {
+  type: "market";
+  price?: never;
+}
+
+export type Order = LimitOrder | MarketOrder;
+
+export interface RestingOrder extends LimitOrder {
   remainingQuantity: number;
   sequenceId: number;
 }

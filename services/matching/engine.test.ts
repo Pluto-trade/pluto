@@ -2,7 +2,7 @@ import { expect, test } from "vitest";
 
 import { MatchingEngine } from "./engine.ts";
 import type { OrderBookPort } from "./orderBookPort.ts";
-import type { Order, RestingOrder, Side } from "./types.ts";
+import type { LimitOrder, MarketOrder, RestingOrder, Side } from "./types.ts";
 
 const BASE_TIME = 1_700_000_000_000;
 
@@ -123,7 +123,7 @@ class InMemoryOrderBook implements OrderBookPort {
   }
 }
 
-function buildOrder(overrides: Partial<Order> = {}): Order {
+function buildOrder(overrides: Partial<LimitOrder> = {}): LimitOrder {
   return {
     id: "ord-1",
     userId: "user-1",
@@ -131,6 +131,19 @@ function buildOrder(overrides: Partial<Order> = {}): Order {
     side: "buy",
     type: "limit",
     price: 100,
+    quantity: 5,
+    timestamp: BASE_TIME,
+    ...overrides,
+  };
+}
+
+function buildMarketOrder(overrides: Partial<MarketOrder> = {}): MarketOrder {
+  return {
+    id: "market-1",
+    userId: "user-1",
+    symbol: "btc-usd",
+    side: "buy",
+    type: "market",
     quantity: 5,
     timestamp: BASE_TIME,
     ...overrides,
@@ -340,5 +353,63 @@ test("cancels a resting order and removes it from the book", () => {
   expect(cancelResult.found).toBe(true);
   expect(cancelResult.executionReport.status).toBe("cancelled");
   expect(cancelResult.executionReport.remainingQuantity).toBe(2);
+  expect(engine.getOrderBookSnapshot("BTC-USD").bids).toEqual([]);
+});
+
+test("market order matches best available prices without resting", () => {
+  const engine = new MatchingEngine(new InMemoryOrderBook());
+
+  engine.addOrder(
+    buildOrder({
+      id: "ask-101",
+      side: "sell",
+      price: 101,
+      quantity: 2,
+    }),
+  );
+
+  engine.addOrder(
+    buildOrder({
+      id: "ask-102",
+      side: "sell",
+      price: 102,
+      quantity: 4,
+      timestamp: BASE_TIME + 1,
+    }),
+  );
+
+  const result = engine.addOrder(
+    buildMarketOrder({
+      id: "market-buy",
+      quantity: 5,
+      timestamp: BASE_TIME + 2,
+    }),
+  );
+
+  expect(result.trades).toHaveLength(2);
+  expect(result.trades[0]?.price).toBe(101);
+  expect(result.trades[1]?.price).toBe(102);
+  expect(result.orderStatus).toBe("filled");
+  expect(result.remainingQuantity).toBe(0);
+  expect(result.restingOrder).toBeUndefined();
+  expect(engine.getOrderBookSnapshot("BTC-USD").asks).toEqual([
+    { price: 102, totalQuantity: 1, orderCount: 1 },
+  ]);
+});
+
+test("unfilled market quantity does not rest on the book", () => {
+  const engine = new MatchingEngine(new InMemoryOrderBook());
+
+  const result = engine.addOrder(
+    buildMarketOrder({
+      id: "market-buy",
+      quantity: 5,
+    }),
+  );
+
+  expect(result.trades).toHaveLength(0);
+  expect(result.orderStatus).toBe("accepted");
+  expect(result.remainingQuantity).toBe(5);
+  expect(result.restingOrder).toBeUndefined();
   expect(engine.getOrderBookSnapshot("BTC-USD").bids).toEqual([]);
 });

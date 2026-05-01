@@ -1,8 +1,6 @@
-import type { Order, Side } from "./types.ts";
+import type { Order, OrderType, Side } from "./types.ts";
 
-export interface NormalizedOrder extends Order {
-  sequenceId: number;
-}
+export type NormalizedOrder = Order & { sequenceId: number };
 
 export interface PreprocessResult {
   order?: NormalizedOrder;
@@ -28,16 +26,12 @@ export function preprocessOrder(
     return { error: "Side must be either 'buy' or 'sell'" };
   }
 
-  if (normalizedType !== "limit") {
-    return { error: "Only limit orders are supported" };
+  if (!normalizedType) {
+    return { error: "Type must be either 'limit' or 'market'" };
   }
 
   if (!Number.isInteger(order.quantity) || order.quantity <= 0) {
     return { error: "Quantity must be a positive integer" };
-  }
-
-  if (!Number.isInteger(order.price) || order.price <= 0) {
-    return { error: "Price must be a positive integer" };
   }
 
   if (!Number.isInteger(order.timestamp) || order.timestamp <= 0) {
@@ -48,14 +42,37 @@ export function preprocessOrder(
     return { error: "Order ID already exists" };
   }
 
+  if (normalizedType === "market") {
+    return {
+      order: {
+        id: normalizedId,
+        userId: normalizedUserId,
+        symbol: normalizedSymbol,
+        side: normalizedSide,
+        type: "market",
+        quantity: order.quantity,
+        timestamp: order.timestamp,
+        sequenceId: nextSequenceId,
+      },
+    };
+  }
+
+  const price = order.price;
+
+  if (price === undefined || !Number.isInteger(price) || price <= 0) {
+    return { error: "Price must be a positive integer for limit orders" };
+  }
+
   return {
     order: {
-      ...order,
       id: normalizedId,
       userId: normalizedUserId,
       symbol: normalizedSymbol,
       side: normalizedSide,
-      type: normalizedType,
+      type: "limit",
+      price,
+      quantity: order.quantity,
+      timestamp: order.timestamp,
       sequenceId: nextSequenceId,
     },
   };
@@ -74,9 +91,9 @@ function normalizeSide(side: string): Side | undefined {
   return undefined;
 }
 
-function normalizeType(type: string): "limit" | undefined {
+function normalizeType(type: string): OrderType | undefined {
   const normalizedType = type.trim().toLowerCase();
-  if (normalizedType === "limit") {
+  if (normalizedType === "limit" || normalizedType === "market") {
     return normalizedType;
   }
 
