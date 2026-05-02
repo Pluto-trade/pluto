@@ -1,7 +1,8 @@
-import { OrderBook, OrderType, Side } from 'nodejs-order-book';
+import { createMarketOrder, OrderBook, OrderSide, OrderType } from '@repo/orderbook';
 // @ts-ignore - uuid types not found, but module works fine
 import { v4 as uuidv4 } from 'uuid';
 import { TradeInfo, OrderbookSnapshot } from '../types';
+import { timeStamp } from 'node:console';
 
 export class OrderbookService {
   private orderbooks: Map<string, OrderBook> = new Map();
@@ -10,7 +11,7 @@ export class OrderbookService {
 
   getOrCreateOrderbook(marketId: string): OrderBook {
     if (!this.orderbooks.has(marketId)) {
-      this.orderbooks.set(marketId, new OrderBook({ enableJournaling: true }));
+      this.orderbooks.set(marketId, new OrderBook(marketId));
       this.trades.set(marketId, []);
     }
     return this.orderbooks.get(marketId)!;
@@ -25,19 +26,26 @@ export class OrderbookService {
     price?: number
   ) {
     const ob = this.getOrCreateOrderbook(marketId);
+    const userId = 'system'; // placeholder user for orderbook orders
 
     if (type === 'limit' && price !== undefined) {
-      return ob.limit({
+      return ob.addLimit({
         id: orderId,
-        side: side as Side,
-        size,
+        userId,
+        marketId,
+        side: side.toUpperCase() === 'BUY' ? OrderSide.BUY : OrderSide.SELL,
         price,
+        size,
       });
     } else if (type === 'market') {
-      return ob.market({
-        side: side as Side,
-        size,
-      });
+      const marketOrderOptions = {
+        id: orderId,
+        userId: userId,
+        marketId: marketId,
+        side: side.toUpperCase() === 'BUY' ? OrderSide.BUY : OrderSide.SELL,
+        size: size
+      }
+      return createMarketOrder(marketOrderOptions)
     }
 
     throw new Error('Invalid order type or missing price for limit order');
@@ -48,29 +56,44 @@ export class OrderbookService {
     return ob.cancel(orderId);
   }
 
-  modifyOrder(marketId: string, orderId: string, size: number, price: number) {
-    const ob = this.getOrCreateOrderbook(marketId);
-    return ob.modify(orderId, { size, price });
-  }
-
   getOrderbookSnapshot(marketId: string): OrderbookSnapshot {
     const ob = this.getOrCreateOrderbook(marketId);
     const snapshot = ob.snapshot();
 
-    const bids = snapshot.bids.map((level: any) => ({
-      price: level.price,
-      size: level.orders.reduce((sum: number, order: any) => sum + order.size, 0),
-    }));
+    const bids = snapshot.bids.map((level) => {
+      const size = level.orders.reduce((sum: number, order: any) => sum + order.size, 0);
+      const orders = level.orders.map((order: any) => ({
+        id: order.id,
+        size: order.size,
+        createdAt: order.createdAt ?? null,
+      }));
+      return {
+        price: level.price,
+        size,
+        orders,
+        timestamp: level.orders.length > 0 ? (level.orders[0].createdAt ?? snapshot.ts) : snapshot.ts,
+      };
+    });
 
-    const asks = snapshot.asks.map((level: any) => ({
-      price: level.price,
-      size: level.orders.reduce((sum: number, order: any) => sum + order.size, 0),
-    }));
+    const asks = snapshot.asks.map((level) => {
+      const size = level.orders.reduce((sum: number, order: any) => sum + order.size, 0);
+      const orders = level.orders.map((order: any) => ({
+        id: order.id,
+        size: order.size,
+        createdAt: order.createdAt ?? null,
+      }));
+      return {
+        price: level.price,
+        size,
+        orders,
+        timestamp: level.orders.length > 0 ? (level.orders[0].createdAt ?? snapshot.ts) : snapshot.ts,
+      };
+    });
 
     return {
       bids,
       asks,
-      timestamp: Date.now(),
+      timestamp: snapshot.ts || Date.now(),
     };
   }
 
