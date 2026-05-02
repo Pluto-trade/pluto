@@ -50,7 +50,7 @@ async function bootstrap() {
 
   createWsServer(httpServer);
 
-  app.listen(PORT, () => {
+  httpServer.listen(PORT, () => {
   console.log(`🚀 Backend API running on http://localhost:${PORT}`);
   console.log(`🔌 WebSocket server on  ws://localhost:${PORT}/ws`);
   console.log(`

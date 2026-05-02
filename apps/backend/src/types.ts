@@ -1,12 +1,4 @@
-export enum OrderType {
-  MARKET = 'market',
-  LIMIT = 'limit',
-}
-
-export enum OrderSide {
-  BUY = 'buy',
-  SELL = 'sell',
-}
+import { OrderSide, OrderType } from "@repo/database";
 
 export enum MarketStatus {
   ACTIVE = 'ACTIVE',
@@ -53,6 +45,8 @@ export interface WithdrawRequest {
 export interface OrderbookLevel {
   price: number;
   size: number;
+  timestamp: number;
+  orders?: Array<{ id: string; size: number; createdAt?: number | null }>;
 }
 
 export interface OrderbookSnapshot {

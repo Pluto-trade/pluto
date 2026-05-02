@@ -24,6 +24,7 @@ export function createOrder(
 		: createMarketOrder(options, now);
 }
 
+// required in the addLimit function
 export function createLimitOrder(
 	options: LimitOrderOptions,
 	now = Date.now(),

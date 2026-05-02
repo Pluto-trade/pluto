@@ -405,3 +405,8 @@ PORT=3001
 - Trades are automatically recorded when orders match
 - Market status can be toggled to pause/pause trading
 - Balance reserve/release happens during order placement/cancellation
+
+
+# orderbook to-do:
+- Add Redis persistence for orderbook state (currently no persistance - orders lost on restarting server)
+- Map which orders are representing which orderbook entries

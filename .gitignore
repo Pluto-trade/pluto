@@ -34,3 +34,6 @@ apps/web/.env
 
 # turbo
 .turbo
+
+ORDERBOOK_INTEGRATION.md
+ORDERBOOK_INTEGRATION_SUMMARY.md
