@@ -3,8 +3,7 @@ use anchor_lang::prelude::*;
 use crate::errors::ExchangeError;
 use crate::states::{
     CustodyVault, EscrowPosition, EscrowStatus, OrderSide, OrderState, OrderStatus,
-    SettlementStatus, TradeSettlement, UserBalance, UserProfile, ORDER_ID_MAX_LEN,
-    SYMBOL_MAX_LEN, TRADE_ID_MAX_LEN,
+    SettlementStatus, TradeSettlement, UserBalance, UserProfile, SYMBOL_MAX_LEN, TRADE_ID_MAX_LEN,
 };
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
@@ -24,7 +23,7 @@ pub struct SettleTrade<'info> {
         bump = buyer_profile.bump,
         constraint = buyer_profile.authority == buyer.key() @ ExchangeError::InvalidUser
     )]
-    pub buyer_profile: Account<'info, UserProfile>,
+    pub buyer_profile: Box<Account<'info, UserProfile>>,
 
     #[account(
         mut,
@@ -33,7 +32,7 @@ pub struct SettleTrade<'info> {
         constraint = buyer_order.owner == buyer.key() @ ExchangeError::InvalidUser,
         constraint = buyer_order.side == OrderSide::Buy @ ExchangeError::InvalidOrderStatus
     )]
-    pub buyer_order: Account<'info, OrderState>,
+    pub buyer_order: Box<Account<'info, OrderState>>,
 
     #[account(
         mut,
@@ -42,7 +41,7 @@ pub struct SettleTrade<'info> {
         constraint = buyer_escrow.owner == buyer.key() @ ExchangeError::InvalidUser,
         constraint = buyer_escrow.side == OrderSide::Buy @ ExchangeError::InvalidEscrowStatus
     )]
-    pub buyer_escrow: Account<'info, EscrowPosition>,
+    pub buyer_escrow: Box<Account<'info, EscrowPosition>>,
 
     #[account(
         mut,
@@ -51,7 +50,7 @@ pub struct SettleTrade<'info> {
         constraint = buyer_balance.owner == buyer.key() @ ExchangeError::InvalidUser,
         constraint = buyer_balance.token_mint == base_mint.key() @ ExchangeError::InvalidMint
     )]
-    pub buyer_balance: Account<'info, UserBalance>,
+    pub buyer_balance: Box<Account<'info, UserBalance>>,
 
     // Seller's accounts
     #[account(
@@ -59,7 +58,10 @@ pub struct SettleTrade<'info> {
         bump = seller_profile.bump,
         constraint = seller_profile.authority == seller.key() @ ExchangeError::InvalidUser
     )]
-    pub seller_profile: Account<'info, UserProfile>,
+    pub seller_profile: Box<Account<'info, UserProfile>>,
+
+    /// CHECK: Used only to derive and validate seller-owned PDAs.
+    pub seller: AccountInfo<'info>,
 
     #[account(
         mut,
@@ -68,7 +70,7 @@ pub struct SettleTrade<'info> {
         constraint = seller_order.owner == seller.key() @ ExchangeError::InvalidUser,
         constraint = seller_order.side == OrderSide::Sell @ ExchangeError::InvalidOrderStatus
     )]
-    pub seller_order: Account<'info, OrderState>,
+    pub seller_order: Box<Account<'info, OrderState>>,
 
     #[account(
         mut,
@@ -77,7 +79,7 @@ pub struct SettleTrade<'info> {
         constraint = seller_escrow.owner == seller.key() @ ExchangeError::InvalidUser,
         constraint = seller_escrow.side == OrderSide::Sell @ ExchangeError::InvalidEscrowStatus
     )]
-    pub seller_escrow: Account<'info, EscrowPosition>,
+    pub seller_escrow: Box<Account<'info, EscrowPosition>>,
 
     #[account(
         mut,
@@ -86,11 +88,11 @@ pub struct SettleTrade<'info> {
         constraint = seller_balance.owner == seller.key() @ ExchangeError::InvalidUser,
         constraint = seller_balance.token_mint == quote_mint.key() @ ExchangeError::InvalidMint
     )]
-    pub seller_balance: Account<'info, UserBalance>,
+    pub seller_balance: Box<Account<'info, UserBalance>>,
 
     // Token mints
-    pub base_mint: Account<'info, anchor_spl::token::Mint>,
-    pub quote_mint: Account<'info, anchor_spl::token::Mint>,
+    pub base_mint: Box<Account<'info, anchor_spl::token::Mint>>,
+    pub quote_mint: Box<Account<'info, anchor_spl::token::Mint>>,
 
     // Custody vaults for token transfers
     #[account(
@@ -99,7 +101,7 @@ pub struct SettleTrade<'info> {
         bump = base_custody.bump,
         constraint = base_custody.token_mint == base_mint.key() @ ExchangeError::InvalidMint
     )]
-    pub base_custody: Account<'info, CustodyVault>,
+    pub base_custody: Box<Account<'info, CustodyVault>>,
 
     #[account(
         mut,
@@ -107,7 +109,7 @@ pub struct SettleTrade<'info> {
         bump = quote_custody.bump,
         constraint = quote_custody.token_mint == quote_mint.key() @ ExchangeError::InvalidMint
     )]
-    pub quote_custody: Account<'info, CustodyVault>,
+    pub quote_custody: Box<Account<'info, CustodyVault>>,
 
     // Trade settlement record
     #[account(
@@ -117,7 +119,7 @@ pub struct SettleTrade<'info> {
         seeds = [b"settlement", args.trade_id.as_bytes()],
         bump
     )]
-    pub trade_settlement: Account<'info, TradeSettlement>,
+    pub trade_settlement: Box<Account<'info, TradeSettlement>>,
 
     #[account(mut)]
     pub buyer: Signer<'info>,

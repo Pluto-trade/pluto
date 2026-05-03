@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 #[account]
 pub struct UserProfile {
-    has_one: Pubkey,
+    pub authority: Pubkey,
     pub created_at: i64,
     pub bump: u8,
 }
