@@ -7,3 +7,7 @@ pub struct ExchangeConfig {
     pub is_paused: bool,
     pub bump: u8,
 }
+
+impl ExchangeConfig {
+    pub const SPACE: usize = 8 + 32 + 2 + 8 + 1 + 1;
+}

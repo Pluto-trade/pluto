@@ -18,5 +18,5 @@ pub struct EscrowPosition {
 }
 
 impl EscrowPosition {
-    pub const SPACE: usize = 8+ 32+ 32+ string_space(ORDER_ID_MAX_LEN)+OrderSide::SPACE+ EscrowStatus::SPACE+ 8 + 8+ 8+ 8+ 8+ 1;
+    pub const SPACE: usize = 8+ 32+ 32+string_space(ORDER_ID_MAX_LEN) +OrderSide::SPACE + EscrowStatus::SPACE+ 8+ 8+ 8 + 8 + 8 + 1;
 }

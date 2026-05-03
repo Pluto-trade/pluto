@@ -12,6 +12,10 @@ pub enum ExchangeError {
     InvalidMint,
     #[msg("The token vault does not match the custody vault.")]
     InvalidVault,
+    #[msg("The provided string is too long.")]
+    StringTooLong,
+    #[msg("The exchange is currently paused.")]
+    ExchangePaused,
     #[msg("The account does not have enough available balance.")]
     InsufficientAvailableBalance,
     #[msg("The account does not have enough locked balance.")]
