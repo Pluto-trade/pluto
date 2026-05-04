@@ -1,5 +1,3 @@
-#![allow(ambiguous_glob_reexports)]
-
 pub mod cancel_order;
 pub mod create_user;
 pub mod deposit;
