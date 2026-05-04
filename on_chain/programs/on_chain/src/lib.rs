@@ -10,7 +10,7 @@ pub use events::*;
 pub use instructions::*;
 pub use states::*;
 
-declare_id!("3ay1oBhMWfjNzKNPQcj7KACKsDq7yAMg9T12dYGmHwyU");
+declare_id!("6niVdPDPsNw2kCQ1XrupgnupLBPgcq6S68TwkEobCVGr");
 
 #[program]
 pub mod on_chain {

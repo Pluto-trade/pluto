@@ -41,6 +41,6 @@ pub fn handler(ctx: Context<InitializeCustody>) -> Result<()> {
     custody_vault.total_withdrawn = 0;
     custody_vault.total_locked = 0;
     custody_vault.bump = ctx.bumps.custody_vault;
-
+ 
     Ok(())
-}
+} 

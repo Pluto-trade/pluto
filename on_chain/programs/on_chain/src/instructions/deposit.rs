@@ -70,7 +70,7 @@ pub fn handler(ctx: Context<Deposit>, amount: u64) -> Result<()> {
     token::transfer(transfer_ctx, amount)?;
 
     let user_balance = &mut ctx.accounts.user_balance;
-
+//this block runs for when the account is created for the first time 
     if user_balance.owner == Pubkey::default() {
         user_balance.owner = ctx.accounts.user.key();
         user_balance.token_mint = ctx.accounts.token_mint.key();

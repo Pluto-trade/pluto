@@ -8,6 +8,9 @@ skip-lint = false
 [programs.localnet]
 on_chain = "3ay1oBhMWfjNzKNPQcj7KACKsDq7yAMg9T12dYGmHwyU"
 
+[programs.devnet]
+on_chain = "6niVdPDPsNw2kCQ1XrupgnupLBPgcq6S68TwkEobCVGr"
+
 [registry]
 url = "https://api.apr.dev"
 
