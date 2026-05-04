@@ -68,24 +68,18 @@ export class MatchingEngine {
     }
 
     const { order, side } = indexedOrder;
-    const restingQueue = this.orderBook.getQueueAtPrice(
+    const removed = this.orderBook.removeOrder(
       order.symbol,
       side,
       order.price,
+      orderId,
     );
 
-    if (restingQueue) {
-      const orderIndex = restingQueue.findIndex(
-        (restingOrder) => restingOrder.id === orderId,
-      );
-
-      if (orderIndex !== -1) {
-        restingQueue.splice(orderIndex, 1);
-      }
-
-      if (restingQueue.length === 0) {
-        this.orderBook.deletePriceLevel(order.symbol, side, order.price);
-      }
+    if (
+      removed &&
+      this.orderBook.isPriceLevelEmpty(order.symbol, side, order.price)
+    ) {
+      this.orderBook.deletePriceLevel(order.symbol, side, order.price);
     }
 
     this.ordersById.delete(orderId);

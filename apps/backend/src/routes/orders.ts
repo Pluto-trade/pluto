@@ -9,6 +9,7 @@ import { error } from "node:console";
 import { setOrder } from "../lib/redis/order";
 import { redisInit } from "../lib/redis";
 import { getOrderbook } from "../lib/redis/orderbook";
+import { matchingEngineService } from "../services/matchingEngine";
 
 const router = Router();
 
@@ -43,15 +44,35 @@ router.post("/", async (req: Request, res: Response) => {
     // Place order in orderbook
 
     // if it would be a market order it will directly be traded and orders might move from the orderbook, only ob live state will change on frontend nothing else
-    const result = orderbookService.placeOrder(
-      marketId,
-      orderId,
-      side.toLowerCase() as "buy" | "sell",
-      type.toLowerCase() as "limit" | "market",
-      size,
-      price,
-    );
-
+    
+    // const result = orderbookService.placeOrder(
+    //   marketId,
+    //   orderId,
+    //   side.toLowerCase() as "buy" | "sell",
+    //   type.toLowerCase() as "limit" | "market",
+    //   size,
+    //   price,
+    // );
+    const result = await matchingEngineService.addOrder(
+      { 
+        orderId, 
+        userId, 
+        marketId, 
+        side, 
+        type, 
+        size, 
+        price 
+      }
+    ).then((result) => {
+      res.status(201).json({
+        orderId,
+        ...dbOrder,
+        orderBookResult: result,
+      });
+    }).catch((error) => {
+      res.status(500).json({ error: error.message });
+    });
+    
     // Get orderbook snapshot after placing the order
     const orderbookSnapshot = orderbookService.getOrderbookSnapshot(marketId);
     // console.log(orderbookSnapshot)

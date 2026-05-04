@@ -121,6 +121,9 @@ var require_postgres_array = __commonJS({
 });
 
 // src/seed.ts
+var import_config2 = require("dotenv/config");
+
+// src/client.ts
 var import_config = require("dotenv/config");
 
 // ../../node_modules/.pnpm/@prisma+debug@7.2.0/node_modules/@prisma/debug/dist/index.mjs

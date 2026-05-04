@@ -1,7 +1,9 @@
 version: "3"
 
 volumes:
-  database:
+  postgres_data:
+    driver: local
+  redis_data:
     driver: local
 
 services:

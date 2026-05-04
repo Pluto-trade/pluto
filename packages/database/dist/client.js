@@ -140,6 +140,7 @@ __export(client_exports, {
   prisma: () => prisma
 });
 module.exports = __toCommonJS(client_exports);
+var import_config = require("dotenv/config");
 
 // ../../node_modules/.pnpm/@prisma+debug@7.2.0/node_modules/@prisma/debug/dist/index.mjs
 var __defProp2 = Object.defineProperty;
