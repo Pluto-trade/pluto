@@ -68,16 +68,57 @@ class InMemoryOrderBook implements OrderBookPort {
     };
   }
 
-  getQueueAtPrice(
+  peekHead(
+    symbol: string,
+    side: Side,
+    price: number,
+  ): RestingOrder | undefined {
+    return this.getQueue(symbol, side, price)?.[0];
+  }
+
+  applyFillToHead(
+    symbol: string,
+    side: Side,
+    price: number,
+    fillQty: number,
+  ): void {
+    const queue = this.getQueue(symbol, side, price);
+    if (!queue || queue.length === 0) return;
+    queue[0].remainingQuantity -= fillQty;
+  }
+
+  removeHead(symbol: string, side: Side, price: number): void {
+    const queue = this.getQueue(symbol, side, price);
+    if (!queue) return;
+    queue.shift();
+  }
+
+  removeOrder(
+    symbol: string,
+    side: Side,
+    price: number,
+    orderId: string,
+  ): boolean {
+    const queue = this.getQueue(symbol, side, price);
+    if (!queue) return false;
+    const idx = queue.findIndex((order) => order.id === orderId);
+    if (idx === -1) return false;
+    queue.splice(idx, 1);
+    return true;
+  }
+
+  isPriceLevelEmpty(symbol: string, side: Side, price: number): boolean {
+    const queue = this.getQueue(symbol, side, price);
+    return !queue || queue.length === 0;
+  }
+
+  private getQueue(
     symbol: string,
     side: Side,
     price: number,
   ): RestingOrder[] | undefined {
     const symbolBook = this.booksBySymbol.get(symbol);
-    if (!symbolBook) {
-      return undefined;
-    }
-
+    if (!symbolBook) return undefined;
     return this.getSideBook(symbolBook, side).get(price);
   }
 

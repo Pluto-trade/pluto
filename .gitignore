@@ -28,9 +28,8 @@ yarn-error.log*
 .env.development.local
 .env.test.local
 .env.production.local
-packages/database/.env
-apps/web/.env
-#!packages/database/.env
+apps/**/.env
+packages/**/.env
 
 # turbo
 .turbo
@@ -39,3 +38,5 @@ ORDERBOOK_INTEGRATION.md
 ORDERBOOK_INTEGRATION_SUMMARY.md
 pluto-grant-application.zip
 grant-application
+
+dist/

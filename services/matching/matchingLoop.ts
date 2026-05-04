@@ -33,13 +33,13 @@ export function executeMatching(
       break;
     }
 
-    const restingQueue = orderBook.getQueueAtPrice(
+    const head = orderBook.peekHead(
       incomingOrder.symbol,
       oppositeSide,
       bestOppositePrice,
     );
 
-    if (!restingQueue || restingQueue.length === 0) {
+    if (!head) {
       orderBook.deletePriceLevel(
         incomingOrder.symbol,
         oppositeSide,
@@ -48,39 +48,48 @@ export function executeMatching(
       continue;
     }
 
-    const bestOppositeOrder = restingQueue[0];
-    const matchedQuantity = Math.min(
-      remainingQuantity,
-      bestOppositeOrder.remainingQuantity,
-    );
+    const matchedQuantity = Math.min(remainingQuantity, head.remainingQuantity);
+    const headRemainingAfter = head.remainingQuantity - matchedQuantity;
 
     trades.push(
       createTrade(
         incomingOrder,
-        bestOppositeOrder,
+        head,
         matchedQuantity,
         trades.length + 1,
       ),
     );
 
     remainingQuantity -= matchedQuantity;
-    bestOppositeOrder.remainingQuantity -= matchedQuantity;
+    orderBook.applyFillToHead(
+      incomingOrder.symbol,
+      oppositeSide,
+      bestOppositePrice,
+      matchedQuantity,
+    );
 
     executionReports.push({
-      orderId: bestOppositeOrder.id,
-      status:
-        bestOppositeOrder.remainingQuantity === 0
-          ? "filled"
-          : "partially_filled",
+      orderId: head.id,
+      status: headRemainingAfter === 0 ? "filled" : "partially_filled",
       filledQuantity: matchedQuantity,
-      remainingQuantity: bestOppositeOrder.remainingQuantity,
+      remainingQuantity: headRemainingAfter,
     });
 
-    if (bestOppositeOrder.remainingQuantity === 0) {
-      restingQueue.shift();
-      ordersById.delete(bestOppositeOrder.id);
+    if (headRemainingAfter === 0) {
+      orderBook.removeHead(
+        incomingOrder.symbol,
+        oppositeSide,
+        bestOppositePrice,
+      );
+      ordersById.delete(head.id);
 
-      if (restingQueue.length === 0) {
+      if (
+        orderBook.isPriceLevelEmpty(
+          incomingOrder.symbol,
+          oppositeSide,
+          bestOppositePrice,
+        )
+      ) {
         orderBook.deletePriceLevel(
           incomingOrder.symbol,
           oppositeSide,

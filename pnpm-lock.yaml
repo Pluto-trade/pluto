@@ -45,6 +45,9 @@ importers:
       '@repo/database':
         specifier: workspace:*
         version: link:../../packages/database
+      '@repo/matching':
+        specifier: workspace:*
+        version: link:../../services/matching
       '@repo/orderbook':
         specifier: workspace:*
         version: link:../../packages/orderbook

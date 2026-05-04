@@ -27,6 +27,7 @@ export class MarketService {
       return market;
     } catch (error) {
       console.log(error);
+      throw error;
     }
   }
 

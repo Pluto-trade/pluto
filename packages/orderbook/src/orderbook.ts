@@ -48,6 +48,15 @@ export class OrderBook {
 		return this.asks.bestPrice();
 	}
 
+	/**
+	 * Direct access to a side. Exposed for adapters (e.g. the matching-engine
+	 * port adapter) that need to reach `BookSide` ops like `append`, `update`,
+	 * `remove`, and `getQueue` without going through `addLimit` / `cancel`.
+	 */
+	getSide(side: OrderSide): BookSide {
+		return side === OrderSide.BUY ? this.bids : this.asks;
+	}
+
 	/** `bestAsk - bestBid`, or `undefined` if either side is empty. */
 	spread(): number | undefined {
 		const bid = this.bestBid();
