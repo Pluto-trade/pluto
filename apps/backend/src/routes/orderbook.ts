@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { orderbookService } from '../services/orderbook';
+import { matchingEngineService } from '../services/matchingEngine';
 import { orderService } from '../services/order';
 import { TickerInfo } from '../types';
 
@@ -9,8 +10,21 @@ const router = Router();
 router.get('/:marketId/orderbook', async (req: Request, res: Response) => {
   try {
     const marketId = Array.isArray(req.params.marketId) ? req.params.marketId[0] : req.params.marketId;
-    const snapshot = orderbookService.getOrderbookSnapshot(marketId);
-    res.json(snapshot);
+    const snap = await matchingEngineService.getSnapshot(marketId);
+    const ts = Date.now();
+    res.json({
+      bids: snap.bids.map((level) => ({
+        price: level.price,
+        size: level.totalQuantity,
+        timestamp: ts,
+      })),
+      asks: snap.asks.map((level) => ({
+        price: level.price,
+        size: level.totalQuantity,
+        timestamp: ts,
+      })),
+      timestamp: ts,
+    });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -33,7 +47,7 @@ router.get('/:marketId/trades', async (req: Request, res: Response) => {
 router.get('/:marketId/ticker', async (req: Request, res: Response) => {
   try {
     const marketId = Array.isArray(req.params.marketId) ? req.params.marketId[0] : req.params.marketId;
-    const snapshot = orderbookService.getOrderbookSnapshot(marketId);
+    const snapshot = await matchingEngineService.getSnapshot(marketId);
     const lastPrice = orderbookService.getLastPrice(marketId);
     const volume24h = orderbookService.getVolume24h(marketId);
 
