@@ -3,6 +3,10 @@ import { prisma } from '@repo/database';
 import { v4 as uuidv4 } from 'uuid';
 import Decimal from 'decimal.js';
 
+function userAssetKey(userId: string, asset: string): string {
+  return `${userId}_${asset}`;
+}
+
 export class BalanceService {
   async getUserBalances(userId: string) {
     return await prisma.balances.findMany({
@@ -13,10 +17,7 @@ export class BalanceService {
   async getBalance(userId: string, asset: string) {
     return await prisma.balances.findUnique({
       where: {
-        userId_asset: {
-          userId,
-          asset,
-        },
+        userId_asset: userAssetKey(userId, asset),
       },
     });
   }
@@ -27,10 +28,7 @@ export class BalanceService {
     if (existing) {
       return await prisma.balances.update({
         where: {
-          userId_asset: {
-            userId,
-            asset,
-          },
+          userId_asset: userAssetKey(userId, asset),
         },
         data: {
           available: existing.available.plus(new Decimal(amount)),
@@ -45,7 +43,7 @@ export class BalanceService {
         asset,
         available: new Decimal(amount),
         reserved: new Decimal(0),
-        userId_asset: `${userId}_${asset}`,
+        userId_asset: userAssetKey(userId, asset),
       },
     });
   }
@@ -63,10 +61,7 @@ export class BalanceService {
 
     return await prisma.balances.update({
       where: {
-        userId_asset: {
-          userId,
-          asset,
-        },
+        userId_asset: userAssetKey(userId, asset),
       },
       data: {
         available: balance.available.minus(new Decimal(amount)),
@@ -87,10 +82,7 @@ export class BalanceService {
 
     return await prisma.balances.update({
       where: {
-        userId_asset: {
-          userId,
-          asset,
-        },
+        userId_asset: userAssetKey(userId, asset),
       },
       data: {
         available: balance.available.minus(new Decimal(amount)),
@@ -108,10 +100,7 @@ export class BalanceService {
 
     return await prisma.balances.update({
       where: {
-        userId_asset: {
-          userId,
-          asset,
-        },
+        userId_asset: userAssetKey(userId, asset),
       },
       data: {
         available: balance.available.plus(new Decimal(amount)),
