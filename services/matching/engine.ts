@@ -10,14 +10,21 @@ import { executeMatching } from "./matchingLoop.ts";
 import type { OrderBookPort } from "./orderBookPort.ts";
 import { normalizeSymbol, preprocessOrder } from "./preprocess.ts";
 import { buildAcceptedResult, buildRejectedResult } from "./results.ts";
+import { evaluate } from "@repo/mpe";
+import type { Market } from "@repo/mpe";
 
 export class MatchingEngine {
   private readonly ordersById = new Map<string, IndexedOrder>();
   private readonly orderBook: OrderBookPort;
+  private readonly marketSnapshots = new Map<string, Market>();
   private nextSequenceId = 1;
 
   constructor(orderBook: OrderBookPort) {
     this.orderBook = orderBook;
+  }
+
+  updateMarket(symbol: string, market: Market): void {
+    this.marketSnapshots.set(normalizeSymbol(symbol), market);
   }
 
   addOrder(order: Order): MatchResult {
@@ -31,10 +38,23 @@ export class MatchingEngine {
     }
 
     const incomingOrder = preprocessResult.order;
+    const market = this.marketSnapshots.get(incomingOrder.symbol);
+
+    if (market && incomingOrder.type === "limit") {
+      const decision = evaluate(
+        { id: incomingOrder.id, price: incomingOrder.price, side: incomingOrder.side, timestamp: incomingOrder.timestamp },
+        { ...market, currentTime: Date.now() },
+      );
+      if (decision.decision === "CANCEL") {
+        return buildRejectedResult(order.id, `MPE: ${decision.reason}`);
+      }
+    }
+
     const { trades, executionReports, remainingQuantity } = executeMatching(
       incomingOrder,
       this.orderBook,
       this.ordersById,
+      market,
     );
 
     const result = buildAcceptedResult({
