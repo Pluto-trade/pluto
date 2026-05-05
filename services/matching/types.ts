@@ -36,7 +36,7 @@ export interface RestingOrder extends LimitOrder {
   remainingQuantity: number;
   sequenceId: number;
 }
-
+//sell/buy
 export interface Trade {
   tradeId: string;
   symbol: string;
@@ -48,7 +48,7 @@ export interface Trade {
   takerOrderId: string;
   timestamp: number;
 }
-
+//update for each ordr
 export interface ExecutionReport {
   orderId: string;
   status: OrderStatus;
@@ -62,7 +62,7 @@ export interface BookLevel {
   totalQuantity: number;
   orderCount: number;
 }
-
+//currnt ordrbook
 export interface OrderBookSnapshot {
   symbol: string;
   bids: BookLevel[];

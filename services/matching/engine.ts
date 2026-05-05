@@ -19,7 +19,7 @@ export class MatchingEngine {
   constructor(orderBook: OrderBookPort) {
     this.orderBook = orderBook;
   }
-
+//processes incoming order, matches it returns MatchResult
   addOrder(order: Order): MatchResult {
     const preprocessResult = this.preprocessOrder(order);
 
