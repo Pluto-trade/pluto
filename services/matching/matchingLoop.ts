@@ -2,6 +2,8 @@ import type { IndexedOrder } from "./internalTypes.ts";
 import type { OrderBookPort } from "./orderBookPort.ts";
 import type { ExecutionReport, Trade } from "./types.ts";
 import type { NormalizedOrder } from "./preprocess.ts";
+import { evaluate } from "@repo/mpe";
+import type { Market } from "@repo/mpe";
 
 interface ExecuteMatchingResult {
   trades: Trade[];
@@ -13,6 +15,7 @@ export function executeMatching(
   incomingOrder: NormalizedOrder,
   orderBook: OrderBookPort,
   ordersById: Map<string, IndexedOrder>,
+  market?: Market,
 ): ExecuteMatchingResult {
   const trades: Trade[] = [];
   const executionReports: ExecutionReport[] = [];
@@ -46,6 +49,21 @@ export function executeMatching(
         bestOppositePrice,
       );
       continue;
+    }
+
+    if (market) {
+      const decision = evaluate(
+        { id: head.id, price: head.price, side: head.side, timestamp: head.timestamp },
+        { ...market, currentTime: Date.now() },
+      );
+      if (decision.decision === "CANCEL") {
+        orderBook.removeHead(incomingOrder.symbol, oppositeSide, bestOppositePrice);
+        ordersById.delete(head.id);
+        if (orderBook.isPriceLevelEmpty(incomingOrder.symbol, oppositeSide, bestOppositePrice)) {
+          orderBook.deletePriceLevel(incomingOrder.symbol, oppositeSide, bestOppositePrice);
+        }
+        continue;
+      }
     }
 
     const matchedQuantity = Math.min(remainingQuantity, head.remainingQuantity);
