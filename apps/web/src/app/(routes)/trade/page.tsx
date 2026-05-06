@@ -3,5 +3,9 @@
 import { TradingLayout } from '@/components/Trading/TradingLayout';
 
 export default function TradePage() {
-  return <TradingLayout />;
+  return(
+  <div className="">
+      <TradingLayout />
+  </div> 
+  )
 }

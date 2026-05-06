@@ -15,11 +15,11 @@ export const TradingLayout = () => {
   useWebSocket();
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-950">
+    <div className="flex flex-col h-[calc(100vh-64px)] mt-1 bg-slate-950">
       {/* Main Content Grid */}
       <div className="flex flex-1 min-h-0">
         {/* LEFT PANEL - Pairs & Stats */}
-        <div className="w-48">
+        <div className="">
           <LeftPanel />
         </div>
 

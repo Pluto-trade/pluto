@@ -17,7 +17,7 @@ export function AppBar() {
     } = useAppBarSession();
 
     return (
-        <nav className="flex items-center justify-between px-6 py-4 bg-gradient-to-r from-zinc-800 to-zinc-900 border-b border-zinc-700 shadow-lg">
+        <nav className="flex items-center justify-between px-10 py-4 bg-gradient-to-r from-zinc-800 to-zinc-900 border-b border-zinc-700 shadow-lg">
             <AppBarBrand />
 
             <AppBarActions

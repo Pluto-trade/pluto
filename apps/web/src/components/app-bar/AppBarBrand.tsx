@@ -2,7 +2,8 @@ import Image from "next/image";
 
 export function AppBarBrand() {
     return (
-        <div
+        <div 
+        className="m"
             style={{
                 fontSize: "2rem",
                 fontWeight: 600,
