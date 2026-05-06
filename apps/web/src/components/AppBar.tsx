@@ -17,9 +17,8 @@ export function AppBar() {
     } = useAppBarSession();
 
     return (
-        <nav className="flex items-center justify-between px-10 py-4 bg-gradient-to-r from-zinc-800 to-zinc-900 border-b border-zinc-700 shadow-lg">
+        <nav className="h-16 border-b border-white/5 bg-[#020817]/80 backdrop-blur-xl px-6 flex items-center justify-between">
             <AppBarBrand />
-
             <AppBarActions
                 authenticated={authenticated}
                 hasLinkedWallet={hasLinkedWallet}

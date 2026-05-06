@@ -3,13 +3,15 @@
 import { useTradingStore } from '@/store/tradingStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { MarketComponent } from './components/marketComponent';
+import { MarketStats } from './components/marketStats';
 
 // ============ PLACEHOLDER COMPONENTS ============
 
 export const LeftPanel = () => {
   return (
-    <div className="flex h-full w-full items-start justify-center p-10 bg-slate-950 border-slate-800">
+    <div className="grid grid-rows-[60%_40%] w-67.5 h-full gap-4 p-4 shrink-0">
       <MarketComponent />
+      <MarketStats />
     </div>
   );
 };
