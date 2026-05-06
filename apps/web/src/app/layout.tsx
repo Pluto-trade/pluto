@@ -1,4 +1,4 @@
-import { AppBar } from "../components/AppBar";
+import { AppBar } from "@/components/AppBar";
 import Provider from "./providers";
 import type { Metadata } from "next";
 import "./globals.css";

@@ -6,12 +6,9 @@
         "name": "next"
       }
     ],
-    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./*"],
-      "@/src/*": ["./src/*"],
-      "@/components/*": ["./components/*"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [
