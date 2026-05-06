@@ -1,8 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
-import { usePrivy, useWallets } from "@privy-io/react-auth";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { usePrivy } from "@privy-io/react-auth";
+import { useWallets as useSolanaWallets } from "@privy-io/react-auth/solana";
+import { Connection, PublicKey, Transaction, VersionedTransaction } from "@solana/web3.js";
 import { AnchorProvider, Program, Idl } from "@coral-xyz/anchor";
 import IDL from "../idl/on_chain.json";
 
@@ -15,51 +16,42 @@ const RPC_ENDPOINT =
 
 export function useProgram() {
   const { ready, authenticated } = usePrivy();
-  const { wallets } = useWallets();
+  const { ready: walletsReady, wallets } = useSolanaWallets();
+
+  const wallet = useMemo(() => wallets[0] ?? null, [wallets]);
 
   const program = useMemo(() => {
-    if (!ready || !authenticated || !wallets || wallets.length === 0) return null;
-
-    // Find a Solana wallet (check for chainType or walletClientType)
-    const wallet = wallets.find(
-      (w: any) => 
-        w.chainType === "solana" || 
-        w.walletClientType === "solana" ||
-        (w.address && w.address.length > 20) // Solana addresses are 44 chars
-    );
-    
-    if (!wallet) {
-      console.warn("No Solana wallet found in wallets:", wallets);
-      return null;
-    }
+    if (!ready || !authenticated || !walletsReady || !wallet) return null;
 
     const connection = new Connection(RPC_ENDPOINT, "confirmed");
 
+    const deserializeSignedTransaction = (
+      originalTx: Transaction | VersionedTransaction,
+      signedBytes: Uint8Array
+    ) => {
+      if (originalTx instanceof VersionedTransaction) {
+        return VersionedTransaction.deserialize(signedBytes);
+      }
+
+      return Transaction.from(signedBytes);
+    };
+
     const walletAdapter = {
       publicKey: new PublicKey(wallet.address),
-      signTransaction: async (tx: any) => {
-        try {
-          const provider = await (wallet as any).getSolanaProvider();
-          if (!provider) {
-            throw new Error("Solana provider not available");
-          }
-          return provider.signTransaction(tx);
-        } catch (err) {
-          console.error("Error signing transaction:", err);
-          throw err;
-        }
+      signTransaction: async (tx: Transaction | VersionedTransaction) => {
+        const transaction = tx.serialize({
+          requireAllSignatures: false,
+          verifySignatures: false,
+        });
+        const { signedTransaction } = await wallet.signTransaction({
+          transaction,
+          chain: "solana:devnet",
+        });
+
+        return deserializeSignedTransaction(tx, signedTransaction);
       },
-      signAllTransactions: async (txs: any) => {
-        try {
-          const provider = await (wallet as any).getSolanaProvider();
-          if (!provider) {
-            throw new Error("Solana provider not available");
-          }
-          return provider.signAllTransactions(txs);
-        } catch (err) {
-          console.error("Error signing all transactions:", err);
-          throw err;
-        }
+      signAllTransactions: async (txs: Array<Transaction | VersionedTransaction>) => {
+        return Promise.all(txs.map((tx) => walletAdapter.signTransaction(tx)));
       },
     };
 
@@ -68,7 +60,7 @@ export function useProgram() {
     });
 
     return new Program(IDL as Idl, provider);
-  }, [ready, authenticated, wallets]);
+  }, [ready, authenticated, walletsReady, wallet]);
 
   const connection = useMemo(
     () => new Connection(RPC_ENDPOINT, "confirmed"),
@@ -76,17 +68,8 @@ export function useProgram() {
   );
 
   const walletPublicKey = useMemo(() => {
-    if (!wallets || wallets.length === 0) return null;
-    
-    const wallet = wallets.find(
-      (w: any) => 
-        w.chainType === "solana" || 
-        w.walletClientType === "solana" ||
-        (w.address && w.address.length > 20)
-    );
-    
     return wallet ? new PublicKey(wallet.address) : null;
-  }, [wallets]);
+  }, [wallet]);
 
-  return { program, connection, walletPublicKey };
+  return { program, connection, walletPublicKey, walletsReady, wallet };
 }
