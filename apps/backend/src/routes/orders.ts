@@ -3,7 +3,7 @@ import { Router, Request, Response } from "express";
 import { v4 as uuidv4 } from "uuid";
 import { orderService } from "../services/order";
 import { PlaceOrderRequest } from "../types";
-import { setOrder } from "../lib/redis/order";
+import { deleteOrder, setOrder, updateOrderSize } from "../lib/redis/order";
 import { matchingEngineService } from "../services/matchingEngine";
 
 const router = Router();
@@ -49,11 +49,14 @@ router.post("/", async (req: Request, res: Response) => {
       }
     );
 
+    console.log(result);
+
     // Persist only the actual resting quantity. A crossing limit can fill
     // completely, in which case it should not be added as an open book entry.
     if (cleanType === "LIMIT" && result.restingOrder) {
       await setOrder(
         orderId,
+        userId,
         marketId,
         cleanSide,
         result.restingOrder.remainingQuantity.toString(),
@@ -62,7 +65,27 @@ router.post("/", async (req: Request, res: Response) => {
       );
     }
 
+    // Apply incremental updates for maker orders filled during matching.
+    const makerReports = result.executionReports.filter(
+      (report) => report.orderId !== orderId,
+    );
+
+    for (const report of makerReports) {
+      if (report.status === "filled") {
+        await deleteOrder(report.orderId);
+        continue;
+      }
+
+      if (report.status === "partially_filled") {
+        await updateOrderSize(
+          report.orderId,
+          report.remainingQuantity.toString(),
+        );
+      }
+    }
+
     const orderbookSnapshot = await matchingEngineService.getSnapshot(marketId);
+    console.log(orderbookSnapshot)
     const timestamp = Date.now();
 
     res.status(201).json({
@@ -121,6 +144,7 @@ router.delete("/:orderId", async (req: Request, res: Response) => {
 
     // Cancel in the same matching-engine book used by order placement.
     matchingEngineService.cancelOrder(orderId);
+    await deleteOrder(orderId);
 
     // Update in database
     const cancelled = await orderService.cancelOrder(orderId);

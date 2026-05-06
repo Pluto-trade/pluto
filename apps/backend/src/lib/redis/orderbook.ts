@@ -4,6 +4,7 @@ import { keys } from "./keys";
 
 type Order = {
   id: string;
+  userId: string;
   size: string;
   timestamp: string;
 };
@@ -34,6 +35,7 @@ async function buildLevels(
             const orderData = await client.hGetAll(`order:${orderId}`);
             return {
               id: orderId,
+              userId: orderData.userId ?? "",
               size: orderData.size ?? "0",
               timestamp: orderData.timestamp ?? "0",
             };

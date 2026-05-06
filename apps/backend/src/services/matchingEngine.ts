@@ -16,6 +16,7 @@ import {
   type Side,
 } from '@repo/matching';
 import { marketService } from './market';
+import { getOrderbook } from '../lib/redis/orderbook';
 
 class OrderBookAdapter implements OrderBookPort {
   // symbol → OrderBook   (the actual order storage from @repo/orderbook)
@@ -161,10 +162,63 @@ function toOrderSide(side: Side): OrderSide {
 export class MatchingEngineService {
   private readonly engine: MatchingEngine;
   private readonly adapter: OrderBookAdapter;
+  private hydrated = false;
 
   constructor() {
     this.adapter = new OrderBookAdapter();
     this.engine = new MatchingEngine(this.adapter);
+    this.hydrateFromRedis().catch((error) => {
+      console.error("Failed to hydrate matching engine from Redis", error);
+    });
+  }
+
+  private async hydrateFromRedis(): Promise<void> {
+    if (this.hydrated) return;
+    this.hydrated = true;
+    const markets = await marketService.listMarkets();
+
+    for (const market of markets) {
+      const snapshot = await getOrderbook(market.id);
+      const orders: Array<Omit<RestingOrder, "sequenceId">> = [];
+
+      for (const level of snapshot.bids) {
+        const price = Number(level.price);
+        for (const order of level.orders) {
+          orders.push({
+            id: order.id,
+            userId: order.userId || "unknown",
+            symbol: market.symbol,
+            side: "buy",
+            type: "limit",
+            price,
+            quantity: Number(order.size),
+            remainingQuantity: Number(order.size),
+            timestamp: Number(order.timestamp),
+          });
+        }
+      }
+
+      for (const level of snapshot.asks) {
+        const price = Number(level.price);
+        for (const order of level.orders) {
+          orders.push({
+            id: order.id,
+            userId: order.userId || "unknown",
+            symbol: market.symbol,
+            side: "sell",
+            type: "limit",
+            price,
+            quantity: Number(order.size),
+            remainingQuantity: Number(order.size),
+            timestamp: Number(order.timestamp),
+          });
+        }
+      }
+
+      if (orders.length > 0) {
+        this.engine.loadRestingOrders(orders);
+      }
+    }
   }
 
   async addOrder(request: {
@@ -183,14 +237,15 @@ export class MatchingEngineService {
     }
 
     const side = request.side.toLowerCase() as 'buy' | 'sell';
-    const quantity = Math.floor(request.size);
+    const quantity = request.size;
     const timestamp = Date.now();
     const base = { id: request.orderId, userId: request.userId, symbol: market.symbol, side, quantity, timestamp };
-
+    
     const matchingOrder: Order =
-      request.type.toLowerCase() === 'limit' && request.price !== undefined
-        ? { ...base, type: 'limit', price: Math.floor(request.price) }
-        : { ...base, type: 'market' };
+    request.type.toLowerCase() === 'limit' && request.price !== undefined
+    ? { ...base, type: 'limit', price: request.price }
+    : { ...base, type: 'market' };
+    console.log(`Adding order: ${request.orderId}, ${side} ${quantity} of ${market.symbol} at price ${request.price ?? 'market'}`);
 
     return this.engine.addOrder(matchingOrder);
   }

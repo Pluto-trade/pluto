@@ -60,6 +60,7 @@ export class OrderbookChannel implements IWsChannel {
 
     // Fetch Redis orderbook with per-order timestamps
     const redisSnapshot = await getOrderbook(marketId);
+    // console.log(redisSnapshot);
     
     const liveAsks = redisSnapshot.asks.map((ask) => {
       return {

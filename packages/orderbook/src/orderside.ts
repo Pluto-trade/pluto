@@ -7,6 +7,15 @@ export interface DepthLevel {
 	orders: number;
 }
 
+/**
+ * Normalize prices to 8 decimal places to avoid floating-point precision issues
+ * when using prices as Map keys. Example: 10.1 + 0.2 + 0.2 !== 10.5 in IEEE 754,
+ * but normalizationPrice(10.5) will always return the same value.
+ */
+function normalizePrice(price: number): number {
+	return Math.round(price * 100000000) / 100000000;
+}
+
 export class BookSide {
 	private readonly queues: Map<number, OrderQueue> = new Map();
 	private readonly orderToPrice: Map<string, number> = new Map();
@@ -48,7 +57,7 @@ export class BookSide {
 
 	/** Look up a price level directly. */
 	getQueue(price: number): OrderQueue | undefined {
-		return this.queues.get(price);
+		return this.queues.get(normalizePrice(price));
 	}
 
 	/**
@@ -56,15 +65,16 @@ export class BookSide {
 	 * Caller is responsible for duplicate-id checks (lives in OrderBook).
 	 */
 	append(order: ILimitOrder): ILimitOrder {
-		let queue = this.queues.get(order.price);
+		const normalizedPrice = normalizePrice(order.price);
+		let queue = this.queues.get(normalizedPrice);
 		if (queue === undefined) {
-			queue = new OrderQueue(order.price);
-			this.queues.set(order.price, queue);
-			const idx = this.findInsertIndex(order.price);
-			this.prices.splice(idx, 0, order.price);
+			queue = new OrderQueue(normalizedPrice);
+			this.queues.set(normalizedPrice, queue);
+			const idx = this.findInsertIndex(normalizedPrice);
+			this.prices.splice(idx, 0, normalizedPrice);
 		}
 		queue.append(order);
-		this.orderToPrice.set(order.id, order.price);
+		this.orderToPrice.set(order.id, normalizedPrice);
 		this._totalVolume += order.remainingSize;
 		return order;
 	}
@@ -76,13 +86,14 @@ export class BookSide {
 	remove(orderId: string): ILimitOrder | undefined {
 		const price = this.orderToPrice.get(orderId);
 		if (price === undefined) return undefined;
-		const queue = this.queues.get(price);
+		const normalizedPrice = normalizePrice(price);
+		const queue = this.queues.get(normalizedPrice);
 		if (queue === undefined) return undefined;
 		const removed = queue.remove(orderId);
 		if (removed === undefined) return undefined;
 		this.orderToPrice.delete(orderId);
 		this._totalVolume -= removed.remainingSize;
-		if (queue.isEmpty) this.removePriceLevel(price);
+		if (queue.isEmpty) this.removePriceLevel(normalizedPrice);
 		return removed;
 	}
 
@@ -92,8 +103,11 @@ export class BookSide {
 	 */
 	update(updated: ILimitOrder): ILimitOrder | undefined {
 		const price = this.orderToPrice.get(updated.id);
-		if (price === undefined || price !== updated.price) return undefined;
-		const queue = this.queues.get(price);
+		if (price === undefined) return undefined;
+		const normalizedPrice = normalizePrice(price);
+		const normalizedUpdatedPrice = normalizePrice(updated.price);
+		if (normalizedPrice !== normalizedUpdatedPrice) return undefined;
+		const queue = this.queues.get(normalizedPrice);
 		if (queue === undefined) return undefined;
 		const before = queue.volume;
 		const result = queue.update(updated);
@@ -152,25 +166,27 @@ export class BookSide {
 
 	/** Binary search: index where `price` should be inserted to keep `prices` sorted best toworst. */
 	private findInsertIndex(price: number): number {
+		const normalizedPrice = normalizePrice(price);
 		let lo = 0;
 		let hi = this.prices.length;
 		while (lo < hi) {
 			const mid = (lo + hi) >>> 1;
 			const at = this.prices[mid] as number;
-			if (this.compare(at, price) < 0) lo = mid + 1;
+			if (this.compare(at, normalizedPrice) < 0) lo = mid + 1;
 			else hi = mid;
 		}
 		return lo;
 	}
 
 	private findExactIndex(price: number): number {
+		const normalizedPrice = normalizePrice(price);
 		let lo = 0;
 		let hi = this.prices.length - 1;
 		while (lo <= hi) {
 			const mid = (lo + hi) >>> 1;
 			const at = this.prices[mid] as number;
-			if (at === price) return mid;
-			if (this.compare(at, price) < 0) lo = mid + 1;
+			if (at === normalizedPrice) return mid;
+			if (this.compare(at, normalizedPrice) < 0) lo = mid + 1;
 			else hi = mid - 1;
 		}
 		return -1;

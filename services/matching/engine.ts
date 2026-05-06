@@ -120,6 +120,21 @@ export class MatchingEngine {
     return this.orderBook.getOrderBookSnapshot(normalizedSymbol);
   }
 
+  loadRestingOrders(orders: Array<Omit<RestingOrder, "sequenceId">>): void {
+    for (const order of orders) {
+      const restingOrder: RestingOrder = {
+        ...order,
+        sequenceId: this.nextSequenceId,
+      };
+      this.nextSequenceId += 1;
+      this.orderBook.addRestingOrder(restingOrder);
+      this.ordersById.set(restingOrder.id, {
+        order: restingOrder,
+        side: restingOrder.side,
+      });
+    }
+  }
+
   private preprocessOrder(order: Order) {
     const normalizedOrderId = order.id.trim();
     const preprocessResult = preprocessOrder(

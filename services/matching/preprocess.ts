@@ -30,8 +30,8 @@ export function preprocessOrder(
     return { error: "Type must be either 'limit' or 'market'" };
   }
 
-  if (!Number.isInteger(order.quantity) || order.quantity <= 0) {
-    return { error: "Quantity must be a positive integer" };
+  if (!Number.isFinite(order.quantity) || order.quantity <= 0) {
+    return { error: "Quantity must be a positive number" };
   }
 
   if (!Number.isInteger(order.timestamp) || order.timestamp <= 0) {
@@ -59,8 +59,8 @@ export function preprocessOrder(
 
   const price = order.price;
 
-  if (price === undefined || !Number.isInteger(price) || price <= 0) {
-    return { error: "Price must be a positive integer for limit orders" };
+  if (price === undefined || !Number.isFinite(price) || price <= 0) {
+    return { error: "Price must be a positive number for limit orders" };
   }
 
   return {
