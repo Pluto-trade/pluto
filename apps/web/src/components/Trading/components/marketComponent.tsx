@@ -110,7 +110,7 @@ export function MarketComponent() {
 	};
 
 	return (
-		<div className="w-full rounded-2xl shadow-2xl backdrop-blur-xl border border-[#1e222d] bg-[#081126]/90 p-5 ">
+		<div className="w-full rounded-lg shadow-lg backdrop-blur-xl border border-[#1e222d] bg-[#081126]/90 p-5 ">
 			<h3 className="text-[15px] font-semibold text-white mb-4">Markets</h3>
 
 			<div className="relative flex items-center rounded-lg border border-[#2a2e39] bg-[#0b0e14] px-3 py-2 gap-2">

@@ -1,6 +1,6 @@
 export const MarketStats = () => {
 	return (
-		<div className="w-full rounded-2xl shadow-2xl backdrop-blur-xl border border-[#1e222d] bg-[#081126]/90 p-5 mb-2">
+		<div className="w-full rounded-xl shadow-xl backdrop-blur-xl border border-[#1e222d] bg-[#081126]/90 p-5 mb-2">
 			<h3 className="text-[14px] font-semibold text-white mb-6">Market Stats</h3>
 			<div className="flex flex-col gap-5">
 				<div className="flex justify-between w-full items-center">

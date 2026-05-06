@@ -7,17 +7,17 @@ import {
   OrderBookPanel,
   RecentTradesPanel,
   TransactionPanel,
-  BottomSheet,
-} from './TradingPanels';
+} from './chartPanel';
+import { BottomSheet } from './bottomPanel';
 
 export const TradingLayout = () => {
   // Initialize WebSocket connection
   useWebSocket();
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] mt-1 bg-slate-950">
+    <div className="flex min-h-[calc(100vh-64px)] flex-col mt-1 bg-slate-950">
       {/* Main Content Grid */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex flex-1">
         {/* LEFT PANEL - Pairs & Stats */}
         <div className="">
           <LeftPanel />
@@ -46,7 +46,7 @@ export const TradingLayout = () => {
       </div>
 
       {/* BOTTOM SHEET - Open Orders, Positions, History */}
-      <div className="h-32 overflow-auto">
+      <div className="min-h-36 overflow-auto">
         <BottomSheet />
       </div>
     </div>

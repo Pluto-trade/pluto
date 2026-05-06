@@ -241,28 +241,3 @@ export const TransactionPanel = () => {
 
 // ============ BOTTOM SHEET ============
 
-export const BottomSheet = () => {
-  return (
-    <div className="bg-slate-900 border-t border-slate-700 p-4">
-      <div className="grid grid-cols-3 gap-4 text-xs">
-        {/* TODO: Open Orders */}
-        <div className="flex-1 p-3 bg-slate-800 rounded">
-          <h4 className="font-semibold text-slate-300 mb-2">Open Orders</h4>
-          <div className="text-slate-500">Expandable section...</div>
-        </div>
-
-        {/* TODO: Positions */}
-        <div className="flex-1 p-3 bg-slate-800 rounded">
-          <h4 className="font-semibold text-slate-300 mb-2">Positions</h4>
-          <div className="text-slate-500">Expandable section...</div>
-        </div>
-
-        {/* TODO: Order History */}
-        <div className="flex-1 p-3 bg-slate-800 rounded">
-          <h4 className="font-semibold text-slate-300 mb-2">History</h4>
-          <div className="text-slate-500">Expandable section...</div>
-        </div>
-      </div>
-    </div>
-  );
-};
