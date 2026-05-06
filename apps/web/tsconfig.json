@@ -6,7 +6,13 @@
         "name": "next"
       }
     ],
-    "ignoreDeprecations": "6.0"
+    "ignoreDeprecations": "6.0",
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"],
+      "@/src/*": ["./src/*"],
+      "@/components/*": ["./components/*"]
+    }
   },
   "include": [
     "next-env.d.ts",
