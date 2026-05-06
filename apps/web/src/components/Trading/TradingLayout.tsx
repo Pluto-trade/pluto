@@ -81,11 +81,11 @@ export const TradingLayout = () => {
   useWebSocket();
 
   return (
-    <div className="flex min-h-[calc(100vh-64px)] flex-col mt-1 bg-slate-950">
+    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-950">
       {/* Main Content Grid */}
       <div className="flex flex-1">
         {/* LEFT PANEL - Pairs & Stats */}
-        {/*<div>
+        <div className="w-48">
           <LeftPanel />
         </div>*/}
 

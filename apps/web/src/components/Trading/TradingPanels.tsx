@@ -2,32 +2,14 @@
 
 import { useTradingStore } from '@/store/tradingStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { MarketComponent } from './components/marketComponent';
 
 // ============ PLACEHOLDER COMPONENTS ============
 
 export const LeftPanel = () => {
   return (
-    <div className="flex flex-col gap-4 p-4 bg-slate-900 border-r border-slate-700">
-      {/* Pairs List */}
-      <div>
-        <h3 className="text-xs font-semibold text-slate-400 mb-2 uppercase">Pairs</h3>
-        <div className="space-y-2">
-          {/* TODO: Add pair list component */}
-          <div className="h-10 bg-slate-800 rounded animate-pulse" />
-          <div className="h-10 bg-slate-800 rounded animate-pulse" />
-          <div className="h-10 bg-slate-800 rounded animate-pulse" />
-        </div>
-      </div>
-
-      {/* Stats */}
-      <div>
-        <h3 className="text-xs font-semibold text-slate-400 mb-2 uppercase">Stats</h3>
-        <div className="space-y-2">
-          {/* TODO: Add market stats */}
-          <div className="h-8 bg-slate-800 rounded animate-pulse" />
-          <div className="h-8 bg-slate-800 rounded animate-pulse" />
-        </div>
-      </div>
+    <div className="flex h-full w-full items-start justify-center p-10 bg-slate-950 border-slate-800">
+      <MarketComponent />
     </div>
   );
 };
