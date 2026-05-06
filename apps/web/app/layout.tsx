@@ -1,19 +1,12 @@
 import { AppBar } from "../components/AppBar";
 import Provider from "./providers";
 import type { Metadata } from "next";
-import { Ubuntu } from "next/font/google";
 import "./globals.css";
-
-const ubuntu = Ubuntu({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "700"],
-  variable: "--font-ubuntu",
-});
 
 export const metadata: Metadata = {
   title: "plut0x Exchange",
   description: "Exchange for trading cryptocurrencies",
-    icons: {
+  icons: {
     icon: "/favicon2.ico",
   },
 };
@@ -27,8 +20,10 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <Provider>
-          <AppBar/>
-          {children}
+          <AppBar />
+          <div>
+            {children}
+          </div>
         </Provider>
       </body>
     </html>
