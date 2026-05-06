@@ -81,7 +81,7 @@ export const TradingLayout = () => {
   useWebSocket();
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] bg-slate-950">
+    <div className="flex flex-col h-[calc(100vh-64px)] mt-1 bg-slate-950">
       {/* Main Content Grid */}
       <div className="flex flex-1">
         {/* LEFT PANEL - Pairs & Stats */}
@@ -105,8 +105,8 @@ export const TradingLayout = () => {
         </div>
       </div>
 
-      {/* BOTTOM SHEET */}
-      <div className="min-h-36 overflow-auto">
+      {/* BOTTOM SHEET - Open Orders, Positions, History */}
+      <div className="h-32 overflow-auto">
         <BottomSheet />
       </div>
     </div>

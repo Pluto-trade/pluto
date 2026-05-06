@@ -61,8 +61,8 @@ export function MarketComponent() {
 	};
 
 	return (
-		<div className="w-full max-w-[275px] rounded-xl border border-slate-700/80 bg-slate-950/90 p-4 shadow-[0_0_0_1px_rgba(51,65,85,0.2),0_10px_30px_rgba(2,8,23,0.6)]">
-			<h3 className="text-sm font-semibold text-slate-100">Markets</h3>
+		<div className="w-full rounded-2xl shadow-2xl backdrop-blur-xl border border-[#1e222d] bg-[#081126]/90 p-5 ">
+			<h3 className="text-[15px] font-semibold text-white mb-4">Markets</h3>
 
 			<div className="relative flex items-center rounded-lg border border-[#2a2e39] bg-[#0b0e14] px-3 py-2 gap-2">
 				<Search size={15}/>
