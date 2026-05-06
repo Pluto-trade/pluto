@@ -13,6 +13,9 @@ const ubuntu = Ubuntu({
 export const metadata: Metadata = {
   title: "plut0x Exchange",
   description: "Exchange for trading cryptocurrencies",
+    icons: {
+    icon: "/favicon2.ico",
+  },
 };
 
 export default function RootLayout({

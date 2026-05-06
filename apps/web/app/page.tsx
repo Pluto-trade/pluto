@@ -2,7 +2,7 @@ export default async function IndexPage() {
 
   return (
     <div>
-      <h1>Hello World</h1>
+      <h1 className="font-bold text-3xl">Hello World</h1>
     </div>
   );
 }

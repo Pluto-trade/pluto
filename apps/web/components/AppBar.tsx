@@ -17,15 +17,7 @@ export function AppBar() {
     } = useAppBarSession();
 
     return (
-        <nav
-            style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "1rem 1.5rem",
-                borderBottom: "1px solid #e5e7eb",
-                backgroundColor: "#ffffff",
-            }}
+        <nav className=""
         >
             <AppBarBrand />
 

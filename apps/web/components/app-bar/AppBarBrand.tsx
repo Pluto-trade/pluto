@@ -8,7 +8,7 @@ export function AppBarBrand() {
                 color: "#111827",
             }}
         >
-            galaxyExchange
+            plut0x
         </div>
     );
 }
