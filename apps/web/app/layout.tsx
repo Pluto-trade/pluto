@@ -1,5 +1,12 @@
+import "./globals.css";
 import { AppBar } from "../components/AppBar";
 import Provider from "./providers";
+
+export const metadata = {
+  title: "galaxyExchange · MPE Dashboard",
+  description:
+    "Matching Pre-Engine: orders protected, money saved, and decisions in real time.",
+};
 
 export default function RootLayout({
   children,
@@ -8,7 +15,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
+      <body className="min-h-screen">
         <Provider>
           <AppBar />
           {children}

@@ -28,10 +28,10 @@ export function AppBar() {
 
     const userEmail = googleAccount && "email" in googleAccount ? googleAccount.email : undefined;
     const userName = googleAccount && "name" in googleAccount ? googleAccount.name : undefined;
-const walletAddress =
-  walletAccounts && walletAccounts.length > 0
-    ? walletAccounts[walletAccounts.length - 1].address
-    : undefined;
+    const walletAddress =
+        walletAccounts && walletAccounts.length > 0
+            ? walletAccounts[walletAccounts.length - 1].address
+            : undefined;
 
     useEffect(() => {
         const syncUser = async () => {
@@ -46,9 +46,7 @@ const walletAddress =
 
             const res = await fetch("/api/users/sync", {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
+                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     email: userEmail,
                     name: userName,
@@ -65,62 +63,36 @@ const walletAddress =
     }, [authenticated, userEmail, userName, walletAddress]);
 
     return (
-        <nav
-            style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                padding: "1rem 1.5rem",
-                borderBottom: "1px solid #e5e7eb",
-                backgroundColor: "#ffffff",
-            }}
-        >
-            <div
-                style={{
-                    fontSize: "2rem",
-                    fontWeight: 600,
-                    lineHeight: 1,
-                    color: "#111827",
-                }}
-            >
-                galaxyExchange
+        <nav className="sticky top-0 z-30 flex items-center justify-between border-b border-[var(--color-border)] bg-[rgba(0,0,8,0.7)] px-6 py-4 backdrop-blur-md">
+            <div className="flex items-baseline gap-3">
+                <span className="text-2xl font-semibold tracking-tight grad-cyan">
+                    galaxyExchange
+                </span>
+                <span className="hidden text-xs font-medium uppercase tracking-[0.2em] text-[var(--color-fg-dim)] sm:inline">
+                    MPE Console
+                </span>
             </div>
 
-            <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
+            <div className="flex items-center gap-2">
                 {!authenticated ? (
                     <button
                         type="button"
                         onClick={handleGoogleLogin}
                         disabled={!ready || loading}
-                        style={{
-                            border: "1px solid #111827",
-                            backgroundColor: "#111827",
-                            color: "#ffffff",
-                            borderRadius: "0.5rem",
-                            padding: "0.5rem 1rem",
-                            fontSize: "0.95rem",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                            opacity: !ready || loading ? 0.7 : 1,
-                        }}
+                        className="rounded-lg border border-[var(--color-border-strong)] bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10 disabled:opacity-60"
                     >
-                        {loading ? "Opening Google..." : "Login with Google"}
+                        {loading ? "Opening Google…" : "Login with Google"}
                     </button>
                 ) : (
                     <>
                         <button
                             type="button"
                             onClick={handleConnectWallet}
-                            style={{
-                                border: "1px solid #111827",
-                                backgroundColor: hasLinkedWallet ? "#047857" : "#111827",
-                                color: "#ffffff",
-                                borderRadius: "0.5rem",
-                                padding: "0.5rem 1rem",
-                                fontSize: "0.95rem",
-                                fontWeight: 600,
-                                cursor: "pointer",
-                            }}
+                            className={
+                                hasLinkedWallet
+                                    ? "rounded-lg border border-[color-mix(in_oklab,var(--color-green)_40%,transparent)] bg-[color-mix(in_oklab,var(--color-green)_15%,transparent)] px-4 py-2 text-sm font-semibold text-[var(--color-green)] transition hover:bg-[color-mix(in_oklab,var(--color-green)_22%,transparent)]"
+                                    : "rounded-lg border border-[var(--color-border-strong)] bg-white/5 px-4 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+                            }
                         >
                             {hasLinkedWallet ? "Wallet Connected" : "Connect Wallet"}
                         </button>
@@ -128,16 +100,7 @@ const walletAddress =
                         <button
                             type="button"
                             onClick={logout}
-                            style={{
-                                border: "1px solid #6b7280",
-                                backgroundColor: "#ffffff",
-                                color: "#111827",
-                                borderRadius: "0.5rem",
-                                padding: "0.5rem 1rem",
-                                fontSize: "0.95rem",
-                                fontWeight: 600,
-                                cursor: "pointer",
-                            }}
+                            className="rounded-lg border border-[var(--color-border)] bg-transparent px-4 py-2 text-sm font-semibold text-[var(--color-fg-muted)] transition hover:text-white"
                         >
                             Log out
                         </button>
