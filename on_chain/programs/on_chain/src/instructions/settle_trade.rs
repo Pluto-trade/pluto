@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 use crate::errors::ExchangeError;
 use crate::states::{
-    CustodyVault, EscrowPosition, EscrowStatus, OrderSide, OrderState, OrderStatus,
+    CustodyVault, EscrowPosition, EscrowStatus, OrderSide, OrderState, OrderStatus, OrderType,
     SettlementStatus, TradeSettlement, UserBalance, UserProfile, SYMBOL_MAX_LEN, TRADE_ID_MAX_LEN,
 };
 
@@ -45,12 +45,21 @@ pub struct SettleTrade<'info> {
 
     #[account(
         mut,
-        seeds = [b"user-balance", buyer.key().as_ref(), base_mint.key().as_ref()],
+        seeds = [b"user-balance", buyer.key().as_ref(), quote_mint.key().as_ref()],
         bump = buyer_balance.bump,
         constraint = buyer_balance.owner == buyer.key() @ ExchangeError::InvalidUser,
-        constraint = buyer_balance.token_mint == base_mint.key() @ ExchangeError::InvalidMint
+        constraint = buyer_balance.token_mint == quote_mint.key() @ ExchangeError::InvalidMint
     )]
     pub buyer_balance: Box<Account<'info, UserBalance>>,
+
+    #[account(
+        mut,
+        seeds = [b"user-balance", buyer.key().as_ref(), base_mint.key().as_ref()],
+        bump = buyer_received_balance.bump,
+        constraint = buyer_received_balance.owner == buyer.key() @ ExchangeError::InvalidUser,
+        constraint = buyer_received_balance.token_mint == base_mint.key() @ ExchangeError::InvalidMint
+    )]
+    pub buyer_received_balance: Box<Account<'info, UserBalance>>,
 
     // Seller's accounts
     #[account(
@@ -83,13 +92,20 @@ pub struct SettleTrade<'info> {
 
     #[account(
         mut,
-        seeds = [b"user-balance", seller.key().as_ref(), quote_mint.key().as_ref()],
+        seeds = [b"user-balance", seller.key().as_ref(), base_mint.key().as_ref()],
         bump = seller_balance.bump,
         constraint = seller_balance.owner == seller.key() @ ExchangeError::InvalidUser,
-        constraint = seller_balance.token_mint == quote_mint.key() @ ExchangeError::InvalidMint
+        constraint = seller_balance.token_mint == base_mint.key() @ ExchangeError::InvalidMint
     )]
     pub seller_balance: Box<Account<'info, UserBalance>>,
-
+    #[account(
+        mut,
+        seeds = [b"user-balance", seller.key().as_ref(), quote_mint.key().as_ref()],
+        bump = seller_received_balance.bump,
+        constraint = seller_received_balance.owner == seller.key() @ ExchangeError::InvalidUser,
+        constraint = seller_received_balance.token_mint == quote_mint.key() @ ExchangeError::InvalidMint
+    )]
+    pub seller_received_balance: Box<Account<'info, UserBalance>>,
     // Token mints
     pub base_mint: Box<Account<'info, anchor_spl::token::Mint>>,
     pub quote_mint: Box<Account<'info, anchor_spl::token::Mint>>,
@@ -149,11 +165,13 @@ pub fn handler(ctx: Context<SettleTrade>, args: SettleTradeArgs) -> Result<()> {
         ExchangeError::InvalidOrderStatus
     );
     require!(
-        ctx.accounts.buyer_order.price >= args.price,
+        ctx.accounts.buyer_order.order_type == OrderType::Market
+            || ctx.accounts.buyer_order.price >= args.price,
         ExchangeError::InvalidOrderStatus
     );
     require!(
-        ctx.accounts.seller_order.price <= args.price,
+        ctx.accounts.seller_order.order_type == OrderType::Market
+            || ctx.accounts.seller_order.price <= args.price,
         ExchangeError::InvalidOrderStatus
     );
 
@@ -201,6 +219,54 @@ pub fn handler(ctx: Context<SettleTrade>, args: SettleTradeArgs) -> Result<()> {
         .checked_mul(args.quantity)
         .ok_or(ExchangeError::MathOverflow)?;
 
+    // The order placed first (lower sequence_id) is the maker; the aggressor is the taker.
+    let buyer_is_maker = ctx.accounts.buyer_order.sequence_id
+        < ctx.accounts.seller_order.sequence_id;
+
+    // Fee basis points: maker = 2 bps (0.02%), taker = 6 bps (0.06%)
+    const MAKER_FEE_BPS: u64 = 2;   // 2 / 10_000 = 0.02%
+    const TAKER_FEE_BPS: u64 = 6;   // 6 / 10_000 = 0.06%
+    const BPS_DENOMINATOR: u64 = 10_000;
+
+    // Buyer receives base tokens; seller receives quote tokens.
+    // Fee is charged on what each party *receives*.
+    let (buyer_fee_bps, seller_fee_bps) = if buyer_is_maker {
+        (MAKER_FEE_BPS, TAKER_FEE_BPS)
+    } else {
+        (TAKER_FEE_BPS, MAKER_FEE_BPS)
+    };
+
+    // Buyer fee is on base quantity (charged in base token)
+    let buyer_fee = args
+        .quantity
+        .checked_mul(buyer_fee_bps)
+        .ok_or(ExchangeError::MathOverflow)?
+        .checked_div(BPS_DENOMINATOR)
+        .ok_or(ExchangeError::MathOverflow)?;
+
+    // Seller fee is on quote amount (charged in quote token)
+    let seller_fee = quote_amount
+        .checked_mul(seller_fee_bps)
+        .ok_or(ExchangeError::MathOverflow)?
+        .checked_div(BPS_DENOMINATOR)
+        .ok_or(ExchangeError::MathOverflow)?;
+
+    // Net amounts each party actually receives after fee deduction
+    let buyer_receives = args
+        .quantity
+        .checked_sub(buyer_fee)
+        .ok_or(ExchangeError::MathOverflow)?;
+    let seller_receives = quote_amount
+        .checked_sub(seller_fee)
+        .ok_or(ExchangeError::MathOverflow)?;
+
+    // Resolve maker/taker fees for the settlement record
+    let (maker_fee, taker_fee) = if buyer_is_maker {
+        (buyer_fee, seller_fee)
+    } else {
+        (seller_fee, buyer_fee)
+    };
+
     // ===== Update Buyer =====
     // Buyer releases locked quote tokens (they got base tokens)
     let buyer_order = &mut ctx.accounts.buyer_order;
@@ -231,15 +297,17 @@ pub fn handler(ctx: Context<SettleTrade>, args: SettleTradeArgs) -> Result<()> {
     };
     buyer_escrow.updated_at = now;
 
-    // Buyer receives base tokens (add to available)
+    // Buyer receives base tokens (add to received_balance), release locked quote (from balance)
     let buyer_balance = &mut ctx.accounts.buyer_balance;
-    buyer_balance.available_amount = buyer_balance
-        .available_amount
-        .checked_add(args.quantity)
-        .ok_or(ExchangeError::MathOverflow)?;
     buyer_balance.locked_amount = buyer_balance
         .locked_amount
         .checked_sub(quote_amount)
+        .ok_or(ExchangeError::MathOverflow)?;
+
+    let buyer_received_balance = &mut ctx.accounts.buyer_received_balance;
+    buyer_received_balance.available_amount = buyer_received_balance
+        .available_amount
+        .checked_add(buyer_receives)
         .ok_or(ExchangeError::MathOverflow)?;
 
     // ===== Update Seller =====
@@ -272,28 +340,39 @@ pub fn handler(ctx: Context<SettleTrade>, args: SettleTradeArgs) -> Result<()> {
     };
     seller_escrow.updated_at = now;
 
-    // Seller receives quote tokens (add to available)
+    // Seller receives quote tokens (add to received_balance), release locked base (from balance)
     let seller_balance = &mut ctx.accounts.seller_balance;
-    seller_balance.available_amount = seller_balance
-        .available_amount
-        .checked_add(quote_amount)
-        .ok_or(ExchangeError::MathOverflow)?;
     seller_balance.locked_amount = seller_balance
         .locked_amount
         .checked_sub(args.quantity)
         .ok_or(ExchangeError::MathOverflow)?;
 
+    let seller_received_balance = &mut ctx.accounts.seller_received_balance;
+    seller_received_balance.available_amount = seller_received_balance
+        .available_amount
+        .checked_add(seller_receives)
+        .ok_or(ExchangeError::MathOverflow)?;
+
     // ===== Update Custody Vaults =====
+    // Unlock transferred amounts; retain fees as protocol revenue.
     let base_custody = &mut ctx.accounts.base_custody;
     base_custody.total_locked = base_custody
         .total_locked
         .checked_sub(args.quantity)
+        .ok_or(ExchangeError::MathOverflow)?;
+    base_custody.total_fees_collected = base_custody
+        .total_fees_collected
+        .checked_add(buyer_fee)
         .ok_or(ExchangeError::MathOverflow)?;
 
     let quote_custody = &mut ctx.accounts.quote_custody;
     quote_custody.total_locked = quote_custody
         .total_locked
         .checked_sub(quote_amount)
+        .ok_or(ExchangeError::MathOverflow)?;
+    quote_custody.total_fees_collected = quote_custody
+        .total_fees_collected
+        .checked_add(seller_fee)
         .ok_or(ExchangeError::MathOverflow)?;
 
     // ===== Create Trade Settlement Record =====
@@ -302,16 +381,12 @@ pub fn handler(ctx: Context<SettleTrade>, args: SettleTradeArgs) -> Result<()> {
     trade_settlement.symbol = args.symbol;
     trade_settlement.buy_order_id = ctx.accounts.buyer_order.order_id.clone();
     trade_settlement.sell_order_id = ctx.accounts.seller_order.order_id.clone();
-    trade_settlement.maker_order_id = if ctx.accounts.buyer_order.sequence_id
-        < ctx.accounts.seller_order.sequence_id
-    {
+    trade_settlement.maker_order_id = if buyer_is_maker {
         ctx.accounts.buyer_order.order_id.clone()
     } else {
         ctx.accounts.seller_order.order_id.clone()
     };
-    trade_settlement.taker_order_id = if ctx.accounts.buyer_order.sequence_id
-        < ctx.accounts.seller_order.sequence_id
-    {
+    trade_settlement.taker_order_id = if buyer_is_maker {
         ctx.accounts.seller_order.order_id.clone()
     } else {
         ctx.accounts.buyer_order.order_id.clone()
@@ -323,6 +398,8 @@ pub fn handler(ctx: Context<SettleTrade>, args: SettleTradeArgs) -> Result<()> {
     trade_settlement.price = args.price;
     trade_settlement.quantity = args.quantity;
     trade_settlement.quote_amount = quote_amount;
+    trade_settlement.maker_fee = maker_fee;
+    trade_settlement.taker_fee = taker_fee;
     trade_settlement.status = SettlementStatus::Settled;
     trade_settlement.executed_at = now;
     trade_settlement.settled_at = now;

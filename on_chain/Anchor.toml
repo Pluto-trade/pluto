@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-on_chain = "3ay1oBhMWfjNzKNPQcj7KACKsDq7yAMg9T12dYGmHwyU"
+on_chain = "6niVdPDPsNw2kCQ1XrupgnupLBPgcq6S68TwkEobCVGr"
 
 [programs.devnet]
 on_chain = "6niVdPDPsNw2kCQ1XrupgnupLBPgcq6S68TwkEobCVGr"
@@ -15,7 +15,7 @@ on_chain = "6niVdPDPsNw2kCQ1XrupgnupLBPgcq6S68TwkEobCVGr"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "Devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
