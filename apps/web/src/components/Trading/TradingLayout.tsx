@@ -94,13 +94,16 @@ export const TradingLayout = () => {
           <ChartPanel />
         </div>
 
-        {/* RIGHT - Tabbed market panel + order form */}
+        {/* RIGHT AREA - OrderBook + Trades + Form */}
         <div className="flex">
-          <div className="w-80 flex flex-col p-2 mt-2">
-            <MarketPanel />
-          </div>
-          <div className="mt-2 flex flex-1">
-            <TransactionPanel />
+          {/* OrderBook + Recent Trades (stacked) */}
+          <div className="w-80 flex flex-col">
+            <div className="flex-1 overflow-auto">
+              <OrderBookPanel />
+            </div>
+            <div className="flex-1 overflow-auto border-t border-slate-700">
+              <RecentTradesPanel />
+            </div>
           </div>
         </div>
       </div>

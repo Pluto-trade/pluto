@@ -1,11 +1,9 @@
 "use client";
 
-import { useTradingStore } from "@/store/tradingStore";
-import { useWebSocket } from "@/hooks/useWebSocket";
-import { MarketComponent } from "./components/marketComponent";
-import { MarketStats } from "./components/marketStats";
-import { Button } from "../ui/button";
-import { TradingChart } from "./components/charts/charts";
+import { useTradingStore } from '@/store/tradingStore';
+import { useWebSocket } from '@/hooks/useWebSocket';
+import { MarketComponent } from './components/marketComponent';
+import { MarketStats } from './components/marketStats';
 
 // ============ PLACEHOLDER COMPONENTS ============
 
@@ -155,25 +153,25 @@ export const TransactionPanel = () => {
       <div className="space-y-4">
         {/* Order Type Toggle */}
         <div className="flex gap-2">
-          {(["LIMIT", "MARKET"] as const).map((type) => (
-            <Button
+          {(['LIMIT', 'MARKET'] as const).map((type) => (
+            <button
               key={type}
               onClick={() => setOrderType(type)}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
+              className={`flex-1 py-2 rounded text-sm font-medium transition ${
                 tradePanel.orderType === type
                   ? "bg-indigo-600 text-white"
                   : "bg-slate-800 text-slate-400 hover:bg-slate-700"
               }`}
             >
               {type}
-            </Button>
+            </button>
           ))}
         </div>
 
         {/* Side Toggle */}
         <div className="flex gap-2">
-          {(["BUY", "SELL"] as const).map((side) => (
-            <Button
+          {(['BUY', 'SELL'] as const).map((side) => (
+            <button
               key={side}
               onClick={() => setTradeSide(side)}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
@@ -238,18 +236,14 @@ export const TransactionPanel = () => {
         {/* Place Order Button */}
         <Button
           onClick={handlePlaceOrder}
-          className={`w-full py-3 rounded-lg font-semibold transition ${
-            tradePanel.side === "BUY"
-              ? "bg-green-600 hover:bg-green-700 text-white"
-              : "bg-red-600 hover:bg-red-700 text-white"
+          className={`w-full py-3 rounded font-semibold transition ${
+            tradePanel.side === 'BUY'
+              ? 'bg-green-600 hover:bg-green-700 text-white'
+              : 'bg-red-600 hover:bg-red-700 text-white'
           }`}
         >
-          {tradePanel.side} {tradePanel.size || "0"} BTC
-        </Button>
-        <div className="flex items-center justify-between text-slate-400 text-md">
-          <p>You Recieve</p>
-          <p>0.00 BTC</p>
-        </div>
+          {tradePanel.side} {tradePanel.size || '0'} BTC
+        </button>
       </div>
     </div>
   );

@@ -55,26 +55,20 @@ export const BottomSheet = () => {
 						<span>Action</span>
 					</div>
 					
-					<div className="flex-1 overflow-y-auto max-h-18.5 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
-						{openOrders.length === 0 ? (
-							<div className="flex items-center justify-center h-full py-4 text-[11px] text-slate-500">
-								No open orders.
+					<div className="flex-1 overflow-y-auto max-h-[74px] pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
+						{openOrders.map((item, i) => (
+							<div key={i} className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr_1.5fr_0.8fr] items-center text-[11px] text-slate-300 py-2.5 border-b border-[#2a2e39]/30 last:border-0 hover:bg-[#1e222d]/50 transition">
+								<span>{item.time}</span>
+								<span className="text-white">{item.pair}</span>
+								<span className={item.side === 'BUY' ? 'text-[#00c076]' : 'text-[#ff3b30]'}>{item.side}</span>
+								<span>{item.type}</span>
+								<span className="text-white">{item.price}</span>
+								<span>{item.size}</span>
+								<span>{item.filled}</span>
+								<span className="text-white">{item.total}</span>
+								<button className="hover:text-white transition text-left">{item.action}</button>
 							</div>
-						) : (
-							openOrders.map((item, i) => (
-								<div key={i} className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr_1.5fr_0.8fr] items-center text-[11px] text-slate-300 py-2.5 border-b border-[#2a2e39]/30 last:border-0 hover:bg-[#1e222d]/50 transition">
-									<span>{item.time}</span>
-									<span className="text-white">{item.pair}</span>
-									<span className={item.side === 'BUY' ? 'text-[#00c076]' : 'text-[#ff3b30]'}>{item.side}</span>
-									<span>{item.type}</span>
-									<span className="text-white">{item.price}</span>
-									<span>{item.size}</span>
-									<span>{item.filled}</span>
-									<span className="text-white">{item.total}</span>
-									<button className="hover:text-white transition text-left">{item.action}</button>
-								</div>
-							))
-						)}
+						))}
 					</div>
 				</div>
 
@@ -119,24 +113,18 @@ export const BottomSheet = () => {
 						<span>Status</span>
 					</div>
 					
-					<div className="flex-1 overflow-y-auto max-h-18.5 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
-						{formattedOrderHistory.length === 0 ? (
-							<div className="flex items-center justify-center h-full py-4 text-[11px] text-slate-500">
-								No order history found.
+					<div className="flex-1 overflow-y-auto max-h-[74px] pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
+						{orderHistory.map((item, i) => (
+							<div key={i} className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr] items-center text-[11px] text-slate-300 py-2.5 border-b border-[#2a2e39]/30 last:border-0 hover:bg-[#1e222d]/50 transition">
+								<span>{item.time}</span>
+								<span className="text-white">{item.pair}</span>
+								<span className={item.side === 'BUY' ? 'text-[#00c076]' : 'text-[#ff3b30]'}>{item.side}</span>
+								<span>{item.type}</span>
+								<span className="text-white">{item.price}</span>
+								<span>{item.size}</span>
+								<span className="text-[#00c076]">{item.status}</span>
 							</div>
-						) : (
-							formattedOrderHistory.map((item, i) => (
-								<div key={i} className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr] items-center text-[11px] text-slate-300 py-2.5 border-b border-[#2a2e39]/30 last:border-0 hover:bg-[#1e222d]/50 transition">
-									<span>{item.time}</span>
-									<span className="text-white">{item.pair}</span>
-									<span className={item.side === 'BUY' ? 'text-[#00c076]' : 'text-[#ff3b30]'}>{item.side}</span>
-									<span>{item.type}</span>
-									<span className="text-white">{item.price}</span>
-									<span>{item.size}</span>
-									<span className={item.status === 'FILLED' ? 'text-[#00c076]' : 'text-slate-400'}>{item.status}</span>
-								</div>
-							))
-						)}
+						))}
 					</div>
 				</div>
 			</div>
