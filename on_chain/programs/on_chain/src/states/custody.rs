@@ -8,11 +8,12 @@ pub struct CustodyVault {
     pub total_deposited: u64,
     pub total_withdrawn: u64,
     pub total_locked: u64,
+    pub total_fees_collected: u64,
     pub bump: u8,
 }
 
 impl CustodyVault {
-    pub const SPACE: usize = 8 + 32 + 32 + 32 + 8 + 8 + 8 + 1;
+    pub const SPACE: usize = 8 + 32 + 32 + 32 + 8 + 8 + 8 + 8 + 1;
 }
 
 #[account]
