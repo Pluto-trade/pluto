@@ -2,7 +2,7 @@ import { createMarketOrder, OrderBook, OrderSide, OrderType } from '@repo/orderb
 // @ts-ignore - uuid types not found, but module works fine
 import { v4 as uuidv4 } from 'uuid';
 import { TradeInfo, OrderbookSnapshot } from '../types';
-import { timeStamp } from 'node:console';
+// import { timeStamp } from 'node:console';
 
 export class OrderbookService {
   private orderbooks: Map<string, OrderBook> = new Map();

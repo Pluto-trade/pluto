@@ -245,7 +245,7 @@ export class MatchingEngineService {
     request.type.toLowerCase() === 'limit' && request.price !== undefined
     ? { ...base, type: 'limit', price: request.price }
     : { ...base, type: 'market' };
-    console.log(`Adding order: ${request.orderId}, ${side} ${quantity} of ${market.symbol} at price ${request.price ?? 'market'}`);
+    // console.log(`Adding order: ${request.orderId}, ${side} ${quantity} of ${market.symbol} at price ${request.price ?? 'market'}`);
 
     return this.engine.addOrder(matchingOrder);
   }

@@ -54,7 +54,6 @@ router.get('/:marketId', async (req: Request, res: Response) => {
 
     res.json(market);
   } catch (error: any) {
-    console.log(error)
     res.status(500).json({ error: error.message });
   }
 });

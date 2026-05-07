@@ -49,7 +49,7 @@ router.post("/", async (req: Request, res: Response) => {
       }
     );
 
-    console.log(result);
+    // console.log(result);
 
     // Persist only the actual resting quantity. A crossing limit can fill
     // completely, in which case it should not be added as an open book entry.
@@ -85,7 +85,7 @@ router.post("/", async (req: Request, res: Response) => {
     }
 
     const orderbookSnapshot = await matchingEngineService.getSnapshot(marketId);
-    console.log(orderbookSnapshot)
+    // console.log(orderbookSnapshot)
     const timestamp = Date.now();
 
     res.status(201).json({
@@ -107,7 +107,7 @@ router.post("/", async (req: Request, res: Response) => {
       },
     });
   } catch (error: any) {
-    console.log(error);
+    // console.log(error);
     res.status(500).json({ error: error.message });
   }
 });

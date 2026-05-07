@@ -1,9 +1,8 @@
 import { IWsChannel, WsClient } from '../types';
 import { SubscriptionManager } from '../SubscriptionManager';
-import { orderbookService } from '../../services/orderbook';
-import { OrderbookLevel, OrderbookSnapshot } from '../../types';
+import { OrderbookSnapshot } from '../../types';
 import { getOrderbook } from '../../lib/redis/orderbook';
-import { timeStamp } from 'node:console';
+
 
 const CHANNEL_NAME = 'orderbook';
 const PUSH_INTERVAL_MS = 100; // 100ms snapshot push

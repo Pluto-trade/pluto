@@ -21,7 +21,6 @@ export async function redisInit() {
 
   return client;
   } catch (error) {
-    console.log(error)
     throw new Error("Can't initialize a redis client")
   }
   

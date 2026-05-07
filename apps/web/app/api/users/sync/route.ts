@@ -74,7 +74,6 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, userId: user?.id });
   } catch (error) {
-    console.log("error message:", error)
     return NextResponse.json({ error: "failed to sync user" }, { status: 500 });
   }
 }
