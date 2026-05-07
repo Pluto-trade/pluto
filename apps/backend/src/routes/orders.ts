@@ -45,7 +45,7 @@ router.post("/", async (req: Request, res: Response) => {
         side, 
         type, 
         size, 
-        price 
+        price,
       }
     );
 
@@ -81,6 +81,11 @@ router.post("/", async (req: Request, res: Response) => {
           report.orderId,
           report.remainingQuantity.toString(),
         );
+        continue;
+      }
+
+      if (report.status === "cancelled") {
+        await deleteOrder(report.orderId);
       }
     }
 

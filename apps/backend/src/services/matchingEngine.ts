@@ -15,6 +15,7 @@ import {
   type RestingOrder,
   type Side,
 } from '@repo/matching';
+import type { Market } from '@repo/mpe';
 import { marketService } from './market';
 import { getOrderbook } from '../lib/redis/orderbook';
 
@@ -80,7 +81,10 @@ class OrderBookAdapter implements OrderBookPort {
       updatedAt: Date.now(),
     });
     const shadow = this.restingOrders.get(head.id);
-    if (shadow) shadow.remainingQuantity = newRemaining;
+    if (shadow) {
+      shadow.remainingQuantity = newRemaining;
+      shadow.timestamp = Date.now();
+    }
   }
 
   removeHead(symbol: string, side: Side, price: number): void {
@@ -262,6 +266,10 @@ export class MatchingEngineService {
     }
 
     return this.engine.getOrderBookSnapshot(market.symbol);
+  }
+
+  updateMarket(symbol: string, market: Market): void {
+    this.engine.updateMarket(symbol, market);
   }
 }
 

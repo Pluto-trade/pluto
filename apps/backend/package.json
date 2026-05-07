@@ -16,6 +16,8 @@
   "dependencies": {
     "@repo/database": "workspace:*",
     "@repo/matching": "workspace:*",
+    "@repo/oracle": "workspace:*",
+    "@repo/mpe": "workspace:*",
     "@repo/orderbook": "workspace:*",
     "@types/node": "^25.6.0",
     "@types/ws": "^8.18.1",
