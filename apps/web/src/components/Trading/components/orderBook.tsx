@@ -95,12 +95,17 @@ export function OrderBook() {
       <div className="absolute inset-0 bg-gradient-to-b from-indigo-500/5 via-transparent to-emerald-500/5 pointer-events-none" />
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(255,255,255,0.05),transparent_50%)] pointer-events-none" />
       
-      {/* Header */}
-      <div className="px-5 py-4 flex items-center justify-between border-b border-white/5 bg-white/2 relative">
-        <div className="flex items-center gap-2">
-          <h3 className="text-xs font-bold text-white/90 uppercase tracking-wider">Order Book</h3>
-        </div>
-        <div className="flex items-center gap-3">
+      {/* Header - Tabs */}
+      <div className="flex items-center gap-6 px-5 py-3 border-b border-white/5 bg-white/2 relative">
+        <button className="text-xs font-bold text-white uppercase tracking-wider relative transition-colors">
+          Orders
+          <span className="absolute -bottom-[13px] left-0 w-full h-0.5 bg-indigo-500 shadow-[0_0_8px_rgba(99,102,241,0.6)]" />
+        </button>
+        <button className="text-xs font-bold text-slate-500 uppercase tracking-wider hover:text-slate-300 transition-colors">
+          Trades
+        </button>
+        
+        <div className="ml-auto flex items-center gap-3">
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/5">
              <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">BTC / USD</span>
           </div>
@@ -118,8 +123,8 @@ export function OrderBook() {
       <div className="overflow-hidden flex flex-col font-mono text-[11px] selection:bg-indigo-500/30">
         
         {/* Asks (Sell Orders) */}
-        <div className="flex flex-col-reverse justify-end min-h-0">
-          {processedAsks.slice(-10).map((order, i) => (
+        <div className="flex flex-col-reverse text-sm justify-end min-h-0">
+          {processedAsks.slice(-7).map((order, i) => (
             <OrderRow 
               key={`ask-${order.price}`} 
               order={order} 
@@ -161,8 +166,8 @@ export function OrderBook() {
         </div>
 
         {/* Bids (Buy Orders) */}
-        <div className="flex flex-col min-h-0">
-          {processedBids.slice(0, 10).map((order, i) => (
+        <div className="flex flex-col min-h-0 text-sm">
+          {processedBids.slice(0, 7).map((order, i) => (
             <OrderRow 
               key={`bid-${order.price}`} 
               order={order} 
