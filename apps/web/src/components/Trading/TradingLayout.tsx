@@ -98,12 +98,10 @@ export const TradingLayout = () => {
         <div className="flex">
           {/* OrderBook + Recent Trades (stacked) */}
           <div className="w-80 flex flex-col">
-            <div className="flex-1 overflow-auto">
+            <div className="flex-1 overflow-auto rounded-xl">
               <OrderBookPanel />
-            </div>
-            <div className="flex-1 overflow-auto border-t border-slate-700">
               <RecentTradesPanel />
-            </div>
+
           </div>
         </div>
       </div>

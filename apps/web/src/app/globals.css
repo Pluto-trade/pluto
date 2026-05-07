@@ -110,6 +110,26 @@ body {
   to   { transform: translate(-50%, -50%) rotateX(72deg) rotateZ(360deg); }
 }
 
+@keyframes flashTrade {
+  0% { background-color: rgba(255, 255, 255, 0.1); }
+  100% { background-color: transparent; }
+}
+
+@keyframes tradeSlideIn {
+  0% { transform: translateX(10px); opacity: 0; }
+  100% { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes flashIn {
+  0% { opacity: 0.8; }
+  100% { opacity: 0; }
+}
+
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
 @keyframes moonGlow {
   from { box-shadow: 0 0 8px rgba(0, 212, 255, 0.6); }
   to   { box-shadow: 0 0 20px rgba(0, 212, 255, 1); }

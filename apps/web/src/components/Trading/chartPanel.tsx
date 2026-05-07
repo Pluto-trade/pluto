@@ -2,8 +2,12 @@
 
 import { useTradingStore } from '@/store/tradingStore';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { OrderBook } from './components/orderBook';
+import { RecentTrades } from './components/recentTrades';
 import { MarketComponent } from './components/marketComponent';
 import { MarketStats } from './components/marketStats';
+import { Button } from '../ui/button';
+import { TradingChart } from './components/charts/charts';
 
 // ============ PLACEHOLDER COMPONENTS ============
 
@@ -49,22 +53,10 @@ export const ChartPanel = () => {
 };
 
 export const OrderBookPanel = () => {
-  const { orderBook } = useTradingStore();
-
-  if (!orderBook) {
-    return (
-      <div className="p-4 text-center text-slate-400">
-        Loading order book...
-      </div>
-    );
-  }
-
   return (
     <div className="flex flex-col bg-slate-900 border-r border-slate-700 max-h-96">
       <div className="p-3 border-b border-slate-700">
-        <h3 className="text-xs font-semibold text-slate-400 uppercase">
-          Order Book
-        </h3>
+        <h3 className="text-xs font-semibold text-slate-400 uppercase">Order Book</h3>
       </div>
 
       {/* TODO: Build order book table with asks/bids */}
@@ -94,14 +86,10 @@ export const OrderBookPanel = () => {
 };
 
 export const RecentTradesPanel = () => {
-  const { recentTrades } = useTradingStore();
-
   return (
     <div className="flex flex-col bg-slate-900 border-r border-slate-700 max-h-96">
       <div className="p-3 border-b border-slate-700">
-        <h3 className="text-xs font-semibold text-slate-400 uppercase">
-          Recent Trades
-        </h3>
+        <h3 className="text-xs font-semibold text-slate-400 uppercase">Recent Trades</h3>
       </div>
 
       {/* TODO: Build trades table with virtual scrolling */}
@@ -121,7 +109,7 @@ export const RecentTradesPanel = () => {
               <div
                 key={trade.id}
                 className={`text-xs grid grid-cols-4 gap-2 py-1 ${
-                  trade.side === "BUY" ? "text-green-400" : "text-red-400"
+                  trade.side === 'BUY' ? 'text-green-400' : 'text-red-400'
                 }`}
               >
                 <span>{new Date(trade.timestamp).toLocaleTimeString()}</span>
