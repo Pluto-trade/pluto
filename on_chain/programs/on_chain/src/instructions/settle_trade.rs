@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 
 use crate::errors::ExchangeError;
 use crate::states::{
-    CustodyVault, EscrowPosition, EscrowStatus, OrderSide, OrderState, OrderStatus,
+    CustodyVault, EscrowPosition, EscrowStatus, OrderSide, OrderState, OrderStatus, OrderType,
     SettlementStatus, TradeSettlement, UserBalance, UserProfile, SYMBOL_MAX_LEN, TRADE_ID_MAX_LEN,
 };
 
@@ -165,11 +165,13 @@ pub fn handler(ctx: Context<SettleTrade>, args: SettleTradeArgs) -> Result<()> {
         ExchangeError::InvalidOrderStatus
     );
     require!(
-        ctx.accounts.buyer_order.price >= args.price,
+        ctx.accounts.buyer_order.order_type == OrderType::Market
+            || ctx.accounts.buyer_order.price >= args.price,
         ExchangeError::InvalidOrderStatus
     );
     require!(
-        ctx.accounts.seller_order.price <= args.price,
+        ctx.accounts.seller_order.order_type == OrderType::Market
+            || ctx.accounts.seller_order.price <= args.price,
         ExchangeError::InvalidOrderStatus
     );
 
@@ -217,7 +219,6 @@ pub fn handler(ctx: Context<SettleTrade>, args: SettleTradeArgs) -> Result<()> {
         .checked_mul(args.quantity)
         .ok_or(ExchangeError::MathOverflow)?;
 
-    // ===== Determine Maker / Taker =====
     // The order placed first (lower sequence_id) is the maker; the aggressor is the taker.
     let buyer_is_maker = ctx.accounts.buyer_order.sequence_id
         < ctx.accounts.seller_order.sequence_id;

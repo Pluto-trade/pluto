@@ -116,7 +116,10 @@ pub fn handler(ctx: Context<PlaceOrder>, args: PlaceOrderArgs) -> Result<()> {
     order.symbol = args.symbol;
     order.side = args.side;
     order.order_type = args.order_type;
-    order.status = OrderStatus::Resting;
+    order.status = match args.order_type {
+        OrderType::Limit => OrderStatus::Resting,
+        OrderType::Market => OrderStatus::Accepted,
+    };
     order.price = args.price;
     order.quantity = args.quantity;
     order.filled_quantity = 0;

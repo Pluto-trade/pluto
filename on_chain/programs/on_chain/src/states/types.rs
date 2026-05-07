@@ -17,6 +17,7 @@ impl OrderSide {
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, Debug, PartialEq, Eq)]
 pub enum OrderType {
     Limit,
+    Market,
 }
 
 impl OrderType {

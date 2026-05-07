@@ -259,6 +259,55 @@ describe("on_chain", () => {
     expect(escrow.status).to.deep.equal({ cancelled: {} });
   });
 
+  it("places market orders and marks them accepted", async () => {
+    const user = web3.Keypair.generate();
+    await createUser(user);
+
+    const { mint, tokenAccount, vaultTokenAccount } = await createTokenFixture(
+      user.publicKey,
+      1_000,
+    );
+    await deposit(user, mint, tokenAccount, vaultTokenAccount, 500);
+
+    const orderId = "market-buy-1";
+    await program.methods
+      .placeOrder({
+        orderId,
+        symbol: "SOL/USD",
+        side: { buy: {} },
+        orderType: { market: {} },
+        price: new anchor.BN(10),
+        quantity: new anchor.BN(20),
+      })
+      .accounts({
+        exchange: exchange(),
+        userProfile: userProfile(user.publicKey),
+        order: orderPda(user.publicKey, orderId),
+        escrow: escrowPda(user.publicKey, orderId),
+        userBalance: userBalance(user.publicKey, mint),
+        custodyVault: custodyVault(mint),
+        tokenMint: mint,
+        user: user.publicKey,
+        systemProgram: SYSTEM_PROGRAM_ID,
+      })
+      .signers([user])
+      .rpc();
+
+    const balance = await program.account.userBalance.fetch(
+      userBalance(user.publicKey, mint),
+    );
+    const order = await program.account.orderState.fetch(orderPda(user.publicKey, orderId));
+    const escrow = await program.account.escrowPosition.fetch(
+      escrowPda(user.publicKey, orderId),
+    );
+
+    expect(balance.availableAmount.toNumber()).to.equal(300);
+    expect(balance.lockedAmount.toNumber()).to.equal(200);
+    expect(order.orderType).to.deep.equal({ market: {} });
+    expect(order.status).to.deep.equal({ accepted: {} });
+    expect(escrow.lockedAmount.toNumber()).to.equal(200);
+  });
+
   it("settles a valid trade using locked and received balance accounts", async () => {
     const buyer = web3.Keypair.generate();
     const seller = web3.Keypair.generate();
@@ -414,6 +463,8 @@ describe("on_chain", () => {
     buyerPlacedFirst: boolean;
     buyOrderId: string;
     sellOrderId: string;
+    buyOrderType?: { limit: {} } | { market: {} };
+    sellOrderType?: { limit: {} } | { market: {} };
   }) => {
     const buyer = web3.Keypair.generate();
     const seller = web3.Keypair.generate();
@@ -469,7 +520,7 @@ describe("on_chain", () => {
           orderId: opts.buyOrderId,
           symbol: "SOL/USD",
           side: { buy: {} },
-          orderType: { limit: {} },
+          orderType: opts.buyOrderType ?? { limit: {} },
           price: new anchor.BN(opts.price),
           quantity: new anchor.BN(opts.quantity),
         })
@@ -493,7 +544,7 @@ describe("on_chain", () => {
           orderId: opts.sellOrderId,
           symbol: "SOL/USD",
           side: { sell: {} },
-          orderType: { limit: {} },
+          orderType: opts.sellOrderType ?? { limit: {} },
           price: new anchor.BN(opts.price),
           quantity: new anchor.BN(opts.quantity),
         })
@@ -570,6 +621,50 @@ describe("on_chain", () => {
       sellerBaseBalBefore,
     };
   };
+
+
+  it("settles matching market orders", async () => {
+    const PRICE = 75;
+    const QTY = 20;
+    const QUOTE_AMOUNT = PRICE * QTY;
+
+    const {
+      buyer, seller, baseMint, quoteMint,
+    } = await settleTradeFixture({
+      tradeId: "market-trade-1",
+      price: PRICE,
+      quantity: QTY,
+      buyerPlacedFirst: true,
+      buyOrderId: "market-buy-settle",
+      sellOrderId: "market-sell-settle",
+      buyOrderType: { market: {} },
+      sellOrderType: { market: {} },
+    });
+
+    const buyerOrder = await program.account.orderState.fetch(
+      orderPda(buyer.publicKey, "market-buy-settle"),
+    );
+    const sellerOrder = await program.account.orderState.fetch(
+      orderPda(seller.publicKey, "market-sell-settle"),
+    );
+    const buyerBaseBal = await program.account.userBalance.fetch(
+      userBalance(buyer.publicKey, baseMint),
+    );
+    const sellerQuoteBal = await program.account.userBalance.fetch(
+      userBalance(seller.publicKey, quoteMint),
+    );
+    const settlement = await program.account.tradeSettlement.fetch(
+      settlementPda("market-trade-1"),
+    );
+
+    expect(buyerOrder.orderType).to.deep.equal({ market: {} });
+    expect(sellerOrder.orderType).to.deep.equal({ market: {} });
+    expect(buyerOrder.status).to.deep.equal({ filled: {} });
+    expect(sellerOrder.status).to.deep.equal({ filled: {} });
+    expect(buyerBaseBal.availableAmount.toNumber()).to.equal(QTY + 1);
+    expect(sellerQuoteBal.availableAmount.toNumber()).to.equal(QUOTE_AMOUNT + 1);
+    expect(settlement.status).to.deep.equal({ settled: {} });
+  });
 
 
 
