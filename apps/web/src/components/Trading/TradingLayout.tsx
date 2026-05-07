@@ -101,7 +101,6 @@ export const TradingLayout = () => {
             <div className="flex-1 overflow-auto rounded-xl">
               <OrderBookPanel />
               <RecentTradesPanel />
-
           </div>
         </div>
       </div>
