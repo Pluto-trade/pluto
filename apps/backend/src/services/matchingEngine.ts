@@ -1,228 +1,131 @@
-import {
-  OrderBook,
-  OrderSide,
-  OrderStatus,
-  OrderType,
-  type ILimitOrder,
-} from '@repo/orderbook';
-import {
-  MatchingEngine,
-  type CancelResult,
-  type MatchResult,
-  type Order,
-  type OrderBookPort,
-  type OrderBookSnapshot,
-  type RestingOrder,
-  type Side,
-} from '@repo/matching';
-import type { Market } from '@repo/mpe';
+import { MatchingEngine, type Order, type MatchResult, type CancelResult } from '@repo/matching';
+import type { OrderBookPort, RestingOrder, Side } from '@repo/matching';
 import { marketService } from './market';
-import { getOrderbook } from '../lib/redis/orderbook';
 
-class OrderBookAdapter implements OrderBookPort {
-  // symbol → OrderBook   (the actual order storage from @repo/orderbook)
-  private readonly books = new Map<string, OrderBook>();
-  // orderId → RestingOrder   (the engine-only metadata which @repo/orderbook does not store)
-  private readonly restingOrders = new Map<string, RestingOrder>();
+class MatchingOrderBook implements OrderBookPort {
+  private readonly booksBySymbol = new Map<
+    string,
+    {
+      bids: Map<number, RestingOrder[]>;
+      asks: Map<number, RestingOrder[]>;
+    }
+  >();
 
   addRestingOrder(order: RestingOrder): void {
-    const sideEnum = toOrderSide(order.side);
-    const limitOrder: ILimitOrder = {
-      id: order.id,
-      userId: order.userId,
-      marketId: order.symbol,
-      side: sideEnum,
-      type: OrderType.LIMIT,
-      price: order.price,
-      size: order.quantity,
-      remainingSize: order.remainingQuantity,
-      status: OrderStatus.OPEN,
-      createdAt: order.timestamp,
-      updatedAt: order.timestamp,
-    };
-    this.getOrCreateBook(order.symbol).getSide(sideEnum).append(limitOrder);
-    this.restingOrders.set(order.id, { ...order });
+    const symbolBook = this.getOrCreateSymbolBook(order.symbol);
+    const sideBook = this.getSideBook(symbolBook, order.side);
+    const restingQueue = sideBook.get(order.price) ?? [];
+
+    if (!sideBook.has(order.price)) {
+      sideBook.set(order.price, restingQueue);
+    }
+
+    restingQueue.push(order);
+  }
+
+  deletePriceLevel(symbol: string, side: Side, price: number): void {
+    const symbolBook = this.booksBySymbol.get(symbol);
+    if (!symbolBook) {
+      return;
+    }
+
+    this.getSideBook(symbolBook, side).delete(price);
   }
 
   getBestPrice(symbol: string, side: Side): number | undefined {
-    const book = this.books.get(symbol);
-    if (!book) return undefined;
-    return side === 'buy' ? book.bestBid() : book.bestAsk();
-  }
-
-  peekHead(
-    symbol: string,
-    side: Side,
-    price: number,
-  ): RestingOrder | undefined {
-    const head = this.getQueue(symbol, side, price)?.head();
-    if (!head) return undefined;
-    const shadow = this.restingOrders.get(head.id);
-    if (!shadow) return undefined;
-    shadow.remainingQuantity = head.remainingSize;
-    return shadow;
-  }
-
-  applyFillToHead(
-    symbol: string,
-    side: Side,
-    price: number,
-    fillQty: number,
-  ): void {
-    const book = this.books.get(symbol);
-    if (!book) return;
-    const sideRef = book.getSide(toOrderSide(side));
-    const head = sideRef.getQueue(price)?.head();
-    if (!head) return;
-    const newRemaining = head.remainingSize - fillQty;
-    sideRef.update({
-      ...head,
-      remainingSize: newRemaining,
-      updatedAt: Date.now(),
-    });
-    const shadow = this.restingOrders.get(head.id);
-    if (shadow) {
-      shadow.remainingQuantity = newRemaining;
-      shadow.timestamp = Date.now();
+    const symbolBook = this.booksBySymbol.get(symbol);
+    if (!symbolBook) {
+      return undefined;
     }
+
+    const prices = Array.from(this.getSideBook(symbolBook, side).keys());
+    if (prices.length === 0) {
+      return undefined;
+    }
+
+    return side === 'buy' ? Math.max(...prices) : Math.min(...prices);
   }
 
-  removeHead(symbol: string, side: Side, price: number): void {
-    const book = this.books.get(symbol);
-    if (!book) return;
-    const sideRef = book.getSide(toOrderSide(side));
-    const head = sideRef.getQueue(price)?.head();
-    if (!head) return;
-    sideRef.remove(head.id);
-    this.restingOrders.delete(head.id);
-  }
+  getOrderBookSnapshot(symbol: string) {
+    const symbolBook = this.booksBySymbol.get(symbol);
 
-  removeOrder(
-    symbol: string,
-    side: Side,
-    _price: number,
-    orderId: string,
-  ): boolean {
-    const book = this.books.get(symbol);
-    if (!book) return false;
-    const removed = book.getSide(toOrderSide(side)).remove(orderId);
-    if (!removed) return false;
-    this.restingOrders.delete(orderId);
-    return true;
-  }
+    if (!symbolBook) {
+      return {
+        symbol,
+        bids: [],
+        asks: [],
+      };
+    }
 
-  isPriceLevelEmpty(symbol: string, side: Side, price: number): boolean {
-    const queue = this.getQueue(symbol, side, price);
-    return !queue || queue.isEmpty;
-  }
-
-  // BookSide auto-prunes empty queues on remove(); keep this as a noop so
-  // the matching loop's explicit cleanup call is harmless.
-  deletePriceLevel(_symbol: string, _side: Side, _price: number): void {}
-
-  getOrderBookSnapshot(symbol: string): OrderBookSnapshot {
-    const book = this.books.get(symbol);
-    if (!book) return { symbol, bids: [], asks: [] };
-    const { bids, asks } = book.depth();
     return {
       symbol,
-      bids: bids.map((level) => ({
-        price: level.price,
-        totalQuantity: level.volume,
-        orderCount: level.orders,
-      })),
-      asks: asks.map((level) => ({
-        price: level.price,
-        totalQuantity: level.volume,
-        orderCount: level.orders,
-      })),
+      bids: this.buildLevels(symbolBook.bids, 'buy'),
+      asks: this.buildLevels(symbolBook.asks, 'sell'),
     };
   }
 
-  private getOrCreateBook(symbol: string): OrderBook {
-    let book = this.books.get(symbol);
-    if (!book) {
-      book = new OrderBook(symbol);
-      this.books.set(symbol, book);
+  getQueueAtPrice(
+    symbol: string,
+    side: Side,
+    price: number,
+  ): RestingOrder[] | undefined {
+    const symbolBook = this.booksBySymbol.get(symbol);
+    if (!symbolBook) {
+      return undefined;
     }
-    return book;
+
+    return this.getSideBook(symbolBook, side).get(price);
   }
 
-  private getQueue(symbol: string, side: Side, price: number) {
-    const book = this.books.get(symbol);
-    if (!book) return undefined;
-    return book.getSide(toOrderSide(side)).getQueue(price);
+  private getOrCreateSymbolBook(symbol: string) {
+    const existingBook = this.booksBySymbol.get(symbol);
+
+    if (existingBook) {
+      return existingBook;
+    }
+
+    const newBook = {
+      bids: new Map<number, RestingOrder[]>(),
+      asks: new Map<number, RestingOrder[]>(),
+    };
+
+    this.booksBySymbol.set(symbol, newBook);
+    return newBook;
+  }
+
+  private getSideBook(
+    symbolBook: { bids: Map<number, RestingOrder[]>; asks: Map<number, RestingOrder[]> },
+    side: Side,
+  ): Map<number, RestingOrder[]> {
+    return side === 'buy' ? symbolBook.bids : symbolBook.asks;
+  }
+
+  private buildLevels(
+    sideBook: Map<number, RestingOrder[]>,
+    side: Side,
+  ) {
+    return Array.from(sideBook.entries())
+      .sort(([priceA], [priceB]) =>
+        side === 'buy' ? priceB - priceA : priceA - priceB,
+      )
+      .map(([price, orders]) => ({
+        price,
+        totalQuantity: orders.reduce(
+          (total, order) => total + order.remainingQuantity,
+          0,
+        ),
+        orderCount: orders.length,
+      }));
   }
 }
 
-function toOrderSide(side: Side): OrderSide {
-  return side === 'buy' ? OrderSide.BUY : OrderSide.SELL;
-}
-
-
-/**
- * Service that manages the matching engine and its interactions with the orderbook.
- */
 export class MatchingEngineService {
-  private readonly engine: MatchingEngine;
-  private readonly adapter: OrderBookAdapter;
-  private hydrated = false;
+  private engine: MatchingEngine;
+  private book: MatchingOrderBook;
 
   constructor() {
-    this.adapter = new OrderBookAdapter();
-    this.engine = new MatchingEngine(this.adapter);
-    this.hydrateFromRedis().catch((error) => {
-      console.error("Failed to hydrate matching engine from Redis", error);
-    });
-  }
-
-  private async hydrateFromRedis(): Promise<void> {
-    if (this.hydrated) return;
-    this.hydrated = true;
-    const markets = await marketService.listMarkets();
-
-    for (const market of markets) {
-      const snapshot = await getOrderbook(market.id);
-      const orders: Array<Omit<RestingOrder, "sequenceId">> = [];
-
-      for (const level of snapshot.bids) {
-        const price = Number(level.price);
-        for (const order of level.orders) {
-          orders.push({
-            id: order.id,
-            userId: order.userId || "unknown",
-            symbol: market.symbol,
-            side: "buy",
-            type: "limit",
-            price,
-            quantity: Number(order.size),
-            remainingQuantity: Number(order.size),
-            timestamp: Number(order.timestamp),
-          });
-        }
-      }
-
-      for (const level of snapshot.asks) {
-        const price = Number(level.price);
-        for (const order of level.orders) {
-          orders.push({
-            id: order.id,
-            userId: order.userId || "unknown",
-            symbol: market.symbol,
-            side: "sell",
-            type: "limit",
-            price,
-            quantity: Number(order.size),
-            remainingQuantity: Number(order.size),
-            timestamp: Number(order.timestamp),
-          });
-        }
-      }
-
-      if (orders.length > 0) {
-        this.engine.loadRestingOrders(orders);
-      }
-    }
+    this.book = new MatchingOrderBook();
+    this.engine = new MatchingEngine(this.book);
   }
 
   async addOrder(request: {
@@ -240,16 +143,16 @@ export class MatchingEngineService {
       throw new Error(`Market not found: ${request.marketId}`);
     }
 
-    const side = request.side.toLowerCase() as 'buy' | 'sell';
-    const quantity = request.size;
-    const timestamp = Date.now();
-    const base = { id: request.orderId, userId: request.userId, symbol: market.symbol, side, quantity, timestamp };
-    
-    const matchingOrder: Order =
-    request.type.toLowerCase() === 'limit' && request.price !== undefined
-    ? { ...base, type: 'limit', price: request.price }
-    : { ...base, type: 'market' };
-    // console.log(`Adding order: ${request.orderId}, ${side} ${quantity} of ${market.symbol} at price ${request.price ?? 'market'}`);
+    const matchingOrder: Order = {
+      id: request.orderId,
+      userId: request.userId,
+      symbol: market.symbol,
+      side: request.side.toLowerCase() as 'buy' | 'sell',
+      type: request.type.toLowerCase() as 'limit' | 'market',
+      quantity: Math.floor(request.size),
+      price: request.price ? Math.floor(request.price) : undefined,
+      timestamp: Date.now(),
+    };
 
     return this.engine.addOrder(matchingOrder);
   }
@@ -266,10 +169,6 @@ export class MatchingEngineService {
     }
 
     return this.engine.getOrderBookSnapshot(market.symbol);
-  }
-
-  updateMarket(symbol: string, market: Market): void {
-    this.engine.updateMarket(symbol, market);
   }
 }
 
