@@ -60,6 +60,8 @@ router.get('/:marketId/ticker', async (req: Request, res: Response) => {
       lastPrice,
       volume24h,
       timestamp: Date.now(),
+      high24h: null,
+      low24h: null
     };
 
     res.json(ticker);
