@@ -1,6 +1,6 @@
-import { EventEmitter } from 'events';
 import { IWsChannel, WsClient } from '../types';
 import { SubscriptionManager } from '../SubscriptionManager';
+import { getLatestOrderEvent, type OrderEventPayload } from '../../lib/redis/orderEvents';
 
 const CHANNEL_NAME = 'orders';
 
@@ -18,30 +18,17 @@ const CHANNEL_NAME = 'orders';
  *   orderEventBus.emit('order.updated', { userId, order });
  */
 
-export const orderEventBus = new EventEmitter();
-
-export interface OrderUpdatePayload {
-  orderId: string;
-  status: string;
-  remainingSize?: number;
-  filledSize?: number;
-  marketId: string;
-  side: string;
-  price?: number;
-  size: number;
-  updatedAt: number;
-}
+const PUSH_INTERVAL_MS = 1000;
 
 export class OrdersChannel implements IWsChannel {
   readonly name = CHANNEL_NAME;
 
   private sm!: SubscriptionManager;
+  private intervals: Map<string, ReturnType<typeof setInterval>> = new Map();
+  private lastUpdateTime: Map<string, number> = new Map();
 
   init(sm: SubscriptionManager): void {
     this.sm = sm;
-    orderEventBus.on('order.updated', (payload: { userId: string; order: OrderUpdatePayload }) => {
-      this.push(payload.userId, payload.order);
-    });
   }
 
   onSubscribe(client: WsClient, params: Record<string, string>): void {
@@ -52,6 +39,13 @@ export class OrdersChannel implements IWsChannel {
     }
     const topic = SubscriptionManager.makeTopic(CHANNEL_NAME, { userId });
     this.sm.subscribe(client.id, topic);
+
+    if (!this.intervals.has(userId)) {
+      const handle = setInterval(() => {
+        void this.push(userId);
+      }, PUSH_INTERVAL_MS);
+      this.intervals.set(userId, handle);
+    }
   }
 
   onUnsubscribe(client: WsClient, params?: Record<string, string>): void {
@@ -59,14 +53,26 @@ export class OrdersChannel implements IWsChannel {
     if (!userId) return;
     const topic = SubscriptionManager.makeTopic(CHANNEL_NAME, { userId });
     this.sm.unsubscribe(client.id, topic);
+
+    if (this.sm.subscriberCount(topic) === 0) {
+      clearInterval(this.intervals.get(userId));
+      this.intervals.delete(userId);
+      this.lastUpdateTime.delete(userId);
+    }
   }
 
-  //  Private 
-
-  private push(userId: string, order: OrderUpdatePayload): void {
+  //  Private
+  private async push(userId: string): Promise<void> {
     const topic = SubscriptionManager.makeTopic(CHANNEL_NAME, { userId });
     if (this.sm.subscriberCount(topic) === 0) return;
-    this.sm.broadcast<OrderUpdatePayload>(topic, {
+
+    const order = await getLatestOrderEvent(userId);
+    if (!order) return;
+    const lastSent = this.lastUpdateTime.get(userId);
+    if (lastSent !== undefined && order.updatedAt <= lastSent) return;
+
+    this.lastUpdateTime.set(userId, order.updatedAt);
+    this.sm.broadcast<OrderEventPayload>(topic, {
       channel: CHANNEL_NAME,
       params: { userId },
       data: order,

@@ -1,25 +1,22 @@
-import { EventEmitter } from 'events';
 import { IWsChannel, WsClient } from '../types';
 import { SubscriptionManager } from '../SubscriptionManager';
 import { TradeInfo } from '../../types';
+import { getLatestTrade } from '../../lib/redis/trades';
 
 const CHANNEL_NAME = 'trades';
 
-// Event-driven channel — zero CPU cost when no trades are happening.
-// Topic: "trades::marketId=BTC-USDC"
-// To push a trade: tradeEventBus.emit('trade.matched', { marketId, trade })
-export const tradeEventBus = new EventEmitter();
+// Poll Redis for latest trades.
+const PUSH_INTERVAL_MS = 1000;
 
 export class TradesChannel implements IWsChannel {
   readonly name = CHANNEL_NAME;
 
   private sm!: SubscriptionManager;
+  private intervals: Map<string, ReturnType<typeof setInterval>> = new Map();
+  private lastTradeTimestamp: Map<string, number> = new Map();
 
   init(sm: SubscriptionManager): void {
     this.sm = sm;
-    tradeEventBus.on('trade.matched', (payload: { marketId: string; trade: TradeInfo }) => {
-      this.push(payload.marketId, payload.trade);
-    });
   }
 
   onSubscribe(client: WsClient, params: Record<string, string>): void {
@@ -30,6 +27,13 @@ export class TradesChannel implements IWsChannel {
     }
     const topic = SubscriptionManager.makeTopic(CHANNEL_NAME, { marketId });
     this.sm.subscribe(client.id, topic);
+
+    if (!this.intervals.has(marketId)) {
+      const handle = setInterval(() => {
+        void this.push(marketId);
+      }, PUSH_INTERVAL_MS);
+      this.intervals.set(marketId, handle);
+    }
   }
 
   onUnsubscribe(client: WsClient, params?: Record<string, string>): void {
@@ -37,11 +41,24 @@ export class TradesChannel implements IWsChannel {
     if (!marketId) return;
     const topic = SubscriptionManager.makeTopic(CHANNEL_NAME, { marketId });
     this.sm.unsubscribe(client.id, topic);
+
+    if (this.sm.subscriberCount(topic) === 0) {
+      clearInterval(this.intervals.get(marketId));
+      this.intervals.delete(marketId);
+      this.lastTradeTimestamp.delete(marketId);
+    }
   }
 
-  private push(marketId: string, trade: TradeInfo): void {
+  private async push(marketId: string): Promise<void> {
     const topic = SubscriptionManager.makeTopic(CHANNEL_NAME, { marketId });
     if (this.sm.subscriberCount(topic) === 0) return;
+
+    const trade = await getLatestTrade(marketId);
+    if (!trade) return;
+    const lastTimestamp = this.lastTradeTimestamp.get(marketId);
+    if (lastTimestamp !== undefined && trade.timestamp <= lastTimestamp) return;
+
+    this.lastTradeTimestamp.set(marketId, trade.timestamp);
     this.sm.broadcast<TradeInfo>(topic, {
       channel: CHANNEL_NAME,
       params: { marketId },

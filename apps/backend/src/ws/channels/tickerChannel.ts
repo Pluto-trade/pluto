@@ -1,6 +1,7 @@
 import { IWsChannel, WsClient } from '../types';
 import { SubscriptionManager } from '../SubscriptionManager';
-import { orderbookService } from '../../services/orderbook';
+import { getOrderbook } from '../../lib/redis/orderbook';
+import { getLatestTrade, getStats24h } from '../../lib/redis/trades';
 import { TickerInfo } from '../../types';
 
 const CHANNEL_NAME = 'ticker';
@@ -36,7 +37,9 @@ export class TickerChannel implements IWsChannel {
     this.sm.subscribe(client.id, topic);
 
     if (!this.intervals.has(marketId)) {
-      const handle = setInterval(() => this.push(marketId), PUSH_INTERVAL_MS);
+      const handle = setInterval(() => {
+        void this.push(marketId);
+      }, PUSH_INTERVAL_MS);
       this.intervals.set(marketId, handle);
     }
   }
@@ -56,19 +59,24 @@ export class TickerChannel implements IWsChannel {
 
   //  Private 
 
-  private push(marketId: string): void {
+  private async push(marketId: string): Promise<void> {
     const topic = SubscriptionManager.makeTopic(CHANNEL_NAME, { marketId });
     if (this.sm.subscriberCount(topic) === 0) return;
 
-    const snapshot = orderbookService.getOrderbookSnapshot(marketId);
-    const lastPrice = orderbookService.getLastPrice(marketId);
-    const volume24h = orderbookService.getVolume24h(marketId);
+    const snapshot = await getOrderbook(marketId);
+    const bestBid = snapshot.bids[0]?.price ? Number(snapshot.bids[0].price) : null;
+    const bestAsk = snapshot.asks[0]?.price ? Number(snapshot.asks[0].price) : null;
+    const latestTrade = await getLatestTrade(marketId);
+    const lastPrice = latestTrade ? latestTrade.price : null;
+    const stats24h = await getStats24h(marketId);
 
     const ticker: TickerInfo = {
-      bestBid: snapshot.bids.length > 0 ? snapshot.bids[0].price : null,
-      bestAsk: snapshot.asks.length > 0 ? snapshot.asks[0].price : null,
+      bestBid,
+      bestAsk,
       lastPrice,
-      volume24h,
+      volume24h: stats24h.volume,
+      high24h: stats24h.high,
+      low24h: stats24h.low,
       timestamp: Date.now(),
     };
 

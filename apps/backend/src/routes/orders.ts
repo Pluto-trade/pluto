@@ -4,6 +4,8 @@ import { v4 as uuidv4 } from "uuid";
 import { orderService } from "../services/order";
 import { PlaceOrderRequest } from "../types";
 import { deleteOrder, setOrder, updateOrderSize } from "../lib/redis/order";
+import { addTrade } from "../lib/redis/trades";
+import { addOrderEvent } from "../lib/redis/orderEvents";
 import { matchingEngineService } from "../services/matchingEngine";
 
 const router = Router();
@@ -70,6 +72,16 @@ router.post("/", async (req: Request, res: Response) => {
       (report) => report.orderId !== orderId,
     );
 
+    for (const trade of result.trades) {
+      await addTrade(marketId, {
+        price: trade.price,
+        size: trade.quantity,
+        buyOrderId: trade.buyOrderId,
+        sellOrderId: trade.sellOrderId,
+        timestamp: trade.timestamp,
+      });
+    }
+
     for (const report of makerReports) {
       if (report.status === "filled") {
         await deleteOrder(report.orderId);
@@ -88,6 +100,19 @@ router.post("/", async (req: Request, res: Response) => {
         await deleteOrder(report.orderId);
       }
     }
+
+    const now = Date.now();
+    await addOrderEvent(userId, {
+      orderId,
+      status: result.orderStatus,
+      remainingSize: result.remainingQuantity,
+      filledSize: size - result.remainingQuantity,
+      marketId,
+      side,
+      price,
+      size,
+      updatedAt: now,
+    });
 
     const orderbookSnapshot = await matchingEngineService.getSnapshot(marketId);
     // console.log(orderbookSnapshot)
@@ -153,6 +178,17 @@ router.delete("/:orderId", async (req: Request, res: Response) => {
 
     // Update in database
     const cancelled = await orderService.cancelOrder(orderId);
+    await addOrderEvent(order.userId, {
+      orderId,
+      status: "cancelled",
+      remainingSize: Number(order.remainingSize ?? 0),
+      filledSize: 0,
+      marketId: order.marketId,
+      side: order.side,
+      price: order.price ? Number(order.price) : undefined,
+      size: Number(order.size),
+      updatedAt: Date.now(),
+    });
     res.json(cancelled);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
@@ -183,6 +219,17 @@ router.patch("/:orderId", async (req: Request, res: Response) => {
 
     // Update in database
     const updated = await orderService.updateOrderRemainingSize(orderId, size);
+    await addOrderEvent(order.userId, {
+      orderId,
+      status: "updated",
+      remainingSize: size,
+      filledSize: 0,
+      marketId: order.marketId,
+      side: order.side,
+      price: order.price ? Number(order.price) : undefined,
+      size: Number(order.size),
+      updatedAt: Date.now(),
+    });
     res.json(updated);
   } catch (error: any) {
     res.status(500).json({ error: error.message });

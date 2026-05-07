@@ -48,6 +48,12 @@ importers:
       '@repo/matching':
         specifier: workspace:*
         version: link:../../services/matching
+      '@repo/mpe':
+        specifier: workspace:*
+        version: link:../../packages/mpe
+      '@repo/oracle':
+        specifier: workspace:*
+        version: link:../../packages/oracle
       '@repo/orderbook':
         specifier: workspace:*
         version: link:../../packages/orderbook

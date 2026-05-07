@@ -68,5 +68,7 @@ export interface TickerInfo {
   bestAsk: number | null;
   lastPrice: number | null;
   volume24h: number;
+  high24h: number | null;
+  low24h: number | null;
   timestamp: number;
 }

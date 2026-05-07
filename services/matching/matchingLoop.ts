@@ -59,6 +59,13 @@ export function executeMatching(
       if (decision.decision === "CANCEL") {
         orderBook.removeHead(incomingOrder.symbol, oppositeSide, bestOppositePrice);
         ordersById.delete(head.id);
+        executionReports.push({
+          orderId: head.id,
+          status: "cancelled",
+          filledQuantity: 0,
+          remainingQuantity: head.remainingQuantity,
+          message: `MPE: ${decision.reason}`,
+        });
         if (orderBook.isPriceLevelEmpty(incomingOrder.symbol, oppositeSide, bestOppositePrice)) {
           orderBook.deletePriceLevel(incomingOrder.symbol, oppositeSide, bestOppositePrice);
         }

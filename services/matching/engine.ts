@@ -8,7 +8,7 @@ import type {
 import type { IndexedOrder } from "./internalTypes.ts";
 import { executeMatching } from "./matchingLoop.ts";
 import type { OrderBookPort } from "./orderBookPort.ts";
-import { normalizeSymbol, preprocessOrder, type NormalizedOrder } from "./preprocess.ts";
+import { normalizeSymbol, preprocessOrder } from "./preprocess.ts";
 import { buildAcceptedResult, buildRejectedResult } from "./results.ts";
 import { evaluate } from "@repo/mpe";
 import type { Market } from "@repo/mpe";
@@ -39,13 +39,6 @@ export class MatchingEngine {
 
     const incomingOrder = preprocessResult.order;
     const market = this.marketSnapshots.get(incomingOrder.symbol);
-
-    if (incomingOrder.type === "limit" && this.wouldCross(incomingOrder)) {
-      return buildRejectedResult(
-        order.id,
-        "Crossing limit order is not supported",
-      );
-    }
 
     if (market && incomingOrder.type === "limit") {
       const decision = evaluate(
@@ -159,18 +152,6 @@ export class MatchingEngine {
 
   private normalizeSymbol(symbol: string): string {
     return normalizeSymbol(symbol);
-  }
-
-  private wouldCross(order: NormalizedOrder): boolean {
-    if (order.type !== "limit") {
-      return false;
-    }
-    if (order.side === "buy") {
-      const bestAsk = this.orderBook.getBestPrice(order.symbol, "sell");
-      return bestAsk !== undefined && order?.price >= bestAsk;
-    }
-    const bestBid = this.orderBook.getBestPrice(order.symbol, "buy");
-    return bestBid !== undefined && order?.price <= bestBid;
   }
 
   private addRestingOrder(order: RestingOrder): void {
