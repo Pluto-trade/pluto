@@ -139,13 +139,14 @@ enum MarketStatus {
 }
 
 enum DecisionType {
-  ALLOW
   CANCEL
 }
 
 // todo
 enum ProtectionReason {
-  LARGE_ORDER
-  SUSPICIOUS_ACCOUNT
-  OTHER
+  STRONG_STALE
+  DEVIATION
+  DEVIATION_HIGH_VOL
+  DELAY
+  DELAY_HIGH_VOL
 }

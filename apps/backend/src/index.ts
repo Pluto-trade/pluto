@@ -6,6 +6,7 @@ import marketsRouter from './routes/markets';
 import ordersRouter from './routes/orders';
 import orderbookRouter from './routes/orderbook';
 import balancesRouter from './routes/balances';
+import mpeLogsRouter from './routes/mpeLogs'
 import { createWsServer } from './ws';
 import { redisInit } from './lib/redis';
 import { startPriceStream, getCachedPrice, FEED_IDS } from '@repo/oracle';
@@ -31,6 +32,7 @@ app.use('/markets', marketsRouter);  //done testing
 app.use('/orders', ordersRouter);
 app.use('/orderbook', orderbookRouter);
 app.use('/balances', balancesRouter);
+app.use('/mpe-logs', mpeLogsRouter);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -122,6 +124,10 @@ async function bootstrap() {
     GET    /balances/user/:userId
     POST   /balances/deposit
     POST   /balances/withdraw
+
+  MPE Logs:
+    GET    /mpe-logs/summary
+    GET    /mpe-logs/user/:userId
 
   WebSocket channels (ws://localhost:${PORT}/ws):
     subscribe orderbook  { marketId }

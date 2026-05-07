@@ -7,8 +7,19 @@ import { deleteOrder, setOrder, updateOrderSize } from "../lib/redis/order";
 import { addTrade } from "../lib/redis/trades";
 import { addOrderEvent } from "../lib/redis/orderEvents";
 import { matchingEngineService } from "../services/matchingEngine";
+import { prisma, ProtectionReason } from "@repo/database";
+
 
 const router = Router();
+
+function mapProtectionReason(message: string): ProtectionReason | null {
+  if (message.includes("STRONG_STALE")) return ProtectionReason.STRONG_STALE;
+  if (message.includes("DEVIATION [HIGH_VOL]")) return ProtectionReason.DEVIATION_HIGH_VOL;
+  if (message.includes("DEVIATION")) return ProtectionReason.DEVIATION;
+  if (message.includes("DELAY [HIGH_VOL]")) return ProtectionReason.DELAY_HIGH_VOL;
+  if (message.includes("DELAY")) return ProtectionReason.DELAY;
+  return null;
+}
 
 // POST /orders - Place an order
 router.post("/", async (req: Request, res: Response) => {
@@ -99,6 +110,27 @@ router.post("/", async (req: Request, res: Response) => {
       if (report.status === "cancelled") {
         await deleteOrder(report.orderId);
       }
+    }
+
+    const mpeReports = result.executionReports.filter(
+      (report) => report.message && report.message.startsWith("MPE:"),
+    );
+
+    for (const report of mpeReports) {
+      const reason = mapProtectionReason(report.message ?? "");
+      if (!reason) continue;
+      await prisma.protectionDecisions.create({
+        data: {
+          takerOrderId: orderId,
+          decision: "CANCEL",
+          reason,
+          orderId: report.orderId,
+          marketId,
+          priceDeviation: null,
+          quotePrice: null,
+          quoteAgeMs: null,
+        },
+      });
     }
 
     const now = Date.now();
