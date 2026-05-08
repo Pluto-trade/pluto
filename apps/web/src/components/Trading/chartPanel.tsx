@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useTradingStore } from '@/store/tradingStore';
-import { useWebSocket } from '@/hooks/useWebSocket';
-import { MarketComponent } from './components/marketComponent';
-import { MarketStats } from './components/marketStats';
-import { Button } from '../ui/button';
-import { TradingChart } from './components/charts/charts';
+import { useTradingStore } from "@/store/tradingStore";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import { MarketComponent } from "./components/marketComponent";
+import { MarketStats } from "./components/marketStats";
+import { Button } from "../ui/button";
+import { TradingChart } from "./components/charts/charts";
 
 // ============ PLACEHOLDER COMPONENTS ============
 
@@ -25,19 +25,21 @@ export const ChartPanel = () => {
     <div className="flex flex-col rounded-xl border-r border-[#1e222d] bg-[#081126]/90 p-2 h-full">
       {/* Timeframe Selector */}
       <div className="flex gap-1 p-4 border-b border-slate-700">
-        {(['1m', '5m', '15m', '1h', '4h', '1d'] as const).map((tf) => (
-          <button
-            key={tf}
-            onClick={() => setTimeframe(tf)}
-            className={`px-3 py-1 text-xs rounded transition ${
-              selectedTimeframe === tf
-                ? 'bg-indigo-600 text-white'
-                : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
-            }`}
-          >
-            {tf}
-          </button>
-        ))}
+        {(["1m", "5m", "15m", "1h", "4h", "1d"] as const).map(
+          (tf) => (
+            <button
+              key={tf}
+              onClick={() => setTimeframe(tf)}
+              className={`px-3 py-1 text-xs rounded transition ${
+                selectedTimeframe === tf
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-800 text-slate-400 hover:bg-slate-700"
+              }`}
+            >
+              {tf}
+            </button>
+          ),
+        )}
       </div>
 
       {/* Chart Area */}
@@ -62,7 +64,9 @@ export const OrderBookPanel = () => {
   return (
     <div className="flex flex-col bg-slate-900 border-r border-slate-700 max-h-96">
       <div className="p-3 border-b border-slate-700">
-        <h3 className="text-xs font-semibold text-slate-400 uppercase">Order Book</h3>
+        <h3 className="text-xs font-semibold text-slate-400 uppercase">
+          Order Book
+        </h3>
       </div>
 
       {/* TODO: Build order book table with asks/bids */}
@@ -97,7 +101,9 @@ export const RecentTradesPanel = () => {
   return (
     <div className="flex flex-col bg-slate-900 border-r border-slate-700 max-h-96">
       <div className="p-3 border-b border-slate-700">
-        <h3 className="text-xs font-semibold text-slate-400 uppercase">Recent Trades</h3>
+        <h3 className="text-xs font-semibold text-slate-400 uppercase">
+          Recent Trades
+        </h3>
       </div>
 
       {/* TODO: Build trades table with virtual scrolling */}
@@ -117,7 +123,7 @@ export const RecentTradesPanel = () => {
               <div
                 key={trade.id}
                 className={`text-xs grid grid-cols-4 gap-2 py-1 ${
-                  trade.side === 'BUY' ? 'text-green-400' : 'text-red-400'
+                  trade.side === "BUY" ? "text-green-400" : "text-red-400"
                 }`}
               >
                 <span>{new Date(trade.timestamp).toLocaleTimeString()}</span>
@@ -134,11 +140,12 @@ export const RecentTradesPanel = () => {
 };
 
 export const TransactionPanel = () => {
-  const { tradePanel, setOrderType, setTradeSide, setPrice, setSize } = useTradingStore();
+  const { tradePanel, setOrderType, setTradeSide, setPrice, setSize } =
+    useTradingStore();
 
   const handlePlaceOrder = () => {
     // TODO: Integrate with usePlaceOrder mutation
-    console.log('Place order:', tradePanel);
+    console.log("Place order:", tradePanel);
   };
 
   const total = parseFloat(tradePanel.price) * parseFloat(tradePanel.size) || 0;
@@ -148,32 +155,32 @@ export const TransactionPanel = () => {
       <div className="space-y-4">
         {/* Order Type Toggle */}
         <div className="flex gap-2">
-          {(['LIMIT', 'MARKET'] as const).map((type) => (
-            <Button onClick={() => setOrderType(type)} 
+          {(["LIMIT", "MARKET"] as const).map((type) => (
+            <Button
+              onClick={() => setOrderType(type)}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
                 tradePanel.orderType === type
-                  ? 'bg-indigo-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  ? "bg-indigo-600 text-white"
+                  : "bg-slate-800 text-slate-400 hover:bg-slate-700"
               }`}
             >
               {type}
             </Button>
-
           ))}
         </div>
 
         {/* Side Toggle */}
         <div className="flex gap-2">
-          {(['BUY', 'SELL'] as const).map((side) => (
+          {(["BUY", "SELL"] as const).map((side) => (
             <Button
               key={side}
               onClick={() => setTradeSide(side)}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
                 tradePanel.side === side
-                  ? side === 'BUY'
-                    ? 'bg-green-600 text-white'
-                    : 'bg-red-600 text-white'
-                  : 'bg-slate-800 text-slate-400 hover:bg-slate-700'
+                  ? side === "BUY"
+                    ? "bg-green-600 text-white"
+                    : "bg-red-600 text-white"
+                  : "bg-slate-800 text-slate-400 hover:bg-slate-700"
               }`}
             >
               {side}
@@ -182,9 +189,11 @@ export const TransactionPanel = () => {
         </div>
 
         {/* Price Input (only for LIMIT) */}
-        {tradePanel.orderType === 'LIMIT' && (
+        {tradePanel.orderType === "LIMIT" && (
           <div>
-            <label className="text-xs text-slate-400 mb-1 block">Price (USD)</label>
+            <label className="text-xs text-slate-400 mb-1 block">
+              Price (USD)
+            </label>
             <input
               type="number"
               value={tradePanel.price}
@@ -197,7 +206,9 @@ export const TransactionPanel = () => {
 
         {/* Size Input */}
         <div>
-          <label className="text-xs text-slate-400 mb-1 block">Size (BTC)</label>
+          <label className="text-xs text-slate-400 mb-1 block">
+            Size (BTC)
+          </label>
           <input
             type="number"
             value={tradePanel.size}
@@ -211,7 +222,9 @@ export const TransactionPanel = () => {
         <div className="bg-slate-800 rounded p-3">
           <div className="flex justify-between text-sm">
             <span className="text-slate-400">Total:</span>
-            <span className="text-white font-semibold">${total.toFixed(2)}</span>
+            <span className="text-white font-semibold">
+              ${total.toFixed(2)}
+            </span>
           </div>
         </div>
 
@@ -225,12 +238,12 @@ export const TransactionPanel = () => {
         <Button
           onClick={handlePlaceOrder}
           className={`w-full py-3 rounded-lg font-semibold transition ${
-            tradePanel.side === 'BUY'
-              ? 'bg-green-600 hover:bg-green-700 text-white'
-              : 'bg-red-600 hover:bg-red-700 text-white'
+            tradePanel.side === "BUY"
+              ? "bg-green-600 hover:bg-green-700 text-white"
+              : "bg-red-600 hover:bg-red-700 text-white"
           }`}
         >
-          {tradePanel.side} {tradePanel.size || '0'} BTC
+          {tradePanel.side} {tradePanel.size || "0"} BTC
         </Button>
         <div className="flex items-center justify-between text-slate-400 text-md">
           <p>You Recieve</p>
@@ -242,4 +255,3 @@ export const TransactionPanel = () => {
 };
 
 // ============ BOTTOM SHEET ============
-
