@@ -55,14 +55,44 @@ router.get('/:marketId/ticker', async (req: Request, res: Response) => {
     const bestBid = snapshot.bids.length > 0 ? snapshot.bids[0].price : null;
     const bestAsk = snapshot.asks.length > 0 ? snapshot.asks[0].price : null;
 
+    // Calculate 24h high, low, and change
+    const now = Date.now();
+    const twentyFourHoursAgo = new Date(now - 24 * 60 * 60 * 1000);
+    const trades24h = await orderService.getMarketTrades(marketId, 10000);
+    
+    let high24h = lastPrice;
+    let low24h = lastPrice;
+    let change24h = 0;
+
+    if (trades24h && trades24h.length > 0) {
+      // Filter trades from last 24 hours
+      const recentTrades = trades24h.filter(
+        (t: any) => new Date(t.createdAt).getTime() >= twentyFourHoursAgo.getTime()
+      );
+
+      if (recentTrades.length > 0) {
+        const prices = recentTrades.map((t: any) => Number(t.price));
+        high24h = Math.max(...prices);
+        low24h = Math.min(...prices);
+
+        // Calculate change: (lastPrice - oldestPrice) / oldestPrice * 100
+        const oldestTrade = recentTrades[recentTrades.length - 1];
+        const oldestPrice = Number(oldestTrade.price);
+        if (oldestPrice > 0) {
+          change24h = ((Number(lastPrice) - oldestPrice) / oldestPrice) * 100;
+        }
+      }
+    }
+
     const ticker: TickerInfo = {
       bestBid,
       bestAsk,
       lastPrice,
       volume24h,
-      timestamp: Date.now(),
-      high24h: null,
-      low24h: null
+      timestamp: now,
+      high24h,
+      low24h,
+      change24h,
     };
 
     res.json(ticker);

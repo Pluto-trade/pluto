@@ -77,6 +77,7 @@ export class TickerChannel implements IWsChannel {
       volume24h: stats24h.volume,
       high24h: stats24h.high,
       low24h: stats24h.low,
+      change24h: stats24h.change24h,
       timestamp: Date.now(),
     };
 

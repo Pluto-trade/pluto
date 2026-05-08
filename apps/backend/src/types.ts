@@ -70,5 +70,6 @@ export interface TickerInfo {
   volume24h: number;
   high24h: number | null;
   low24h: number | null;
+  change24h?: number;
   timestamp: number;
 }

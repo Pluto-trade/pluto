@@ -38,13 +38,15 @@ export async function getVolume24h(marketId: string, now = Date.now()): Promise<
 export async function getStats24h(
   marketId: string,
   now = Date.now(),
-): Promise<{ volume: number; high: number | null; low: number | null }> {
+): Promise<{ volume: number; high: number | null; low: number | null; change24h: number }> {
   const client = getRedisClient();
   const rawTrades = await client.lRange(tradeKey(marketId), 0, -1);
   const cutoff = now - 24 * 60 * 60 * 1000;
   let volume = 0;
   let high: number | null = null;
   let low: number | null = null;
+  let oldestPrice: number | null = null;
+  let newestPrice: number | null = null;
 
   for (const raw of rawTrades) {
     const trade = JSON.parse(raw) as TradeInfo;
@@ -52,9 +54,16 @@ export async function getStats24h(
     volume += trade.size;
     if (high === null || trade.price > high) high = trade.price;
     if (low === null || trade.price < low) low = trade.price;
+    if (oldestPrice === null) oldestPrice = trade.price;
+    newestPrice = trade.price;
   }
 
-  return { volume, high, low };
+  let change24h = 0;
+  if (oldestPrice !== null && newestPrice !== null && oldestPrice !== 0) {
+    change24h = ((newestPrice - oldestPrice) / oldestPrice) * 100;
+  }
+
+  return { volume, high, low, change24h };
 }
 
 export interface Candle {
