@@ -157,6 +157,7 @@ export const TransactionPanel = () => {
         <div className="flex gap-2">
           {(["LIMIT", "MARKET"] as const).map((type) => (
             <Button
+              key={type}
               onClick={() => setOrderType(type)}
               className={`flex-1 py-2 rounded-lg text-sm font-medium transition ${
                 tradePanel.orderType === type
