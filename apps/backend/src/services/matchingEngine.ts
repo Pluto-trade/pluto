@@ -1,5 +1,21 @@
-import { MatchingEngine, type Order, type MatchResult, type CancelResult } from '@repo/matching';
-import type { OrderBookPort, RestingOrder, Side } from '@repo/matching';
+import {
+  OrderBook,
+  OrderSide,
+  OrderStatus,
+  OrderType,
+  type ILimitOrder,
+} from '@repo/orderbook';
+import {
+  MatchingEngine,
+  type CancelResult,
+  type MatchResult,
+  type Order,
+  type OrderBookPort,
+  type OrderBookSnapshot,
+  type RestingOrder,
+  type Side,
+} from '@repo/matching';
+import type { Market } from '@repo/mpe';
 import { marketService } from './market';
 import { getOrderbook } from '../lib/redis/orderbook';
 
@@ -51,57 +67,102 @@ class OrderBookAdapter implements OrderBookPort {
     symbol: string,
     side: Side,
     price: number,
-  ): RestingOrder[] | undefined {
-    const symbolBook = this.booksBySymbol.get(symbol);
-    if (!symbolBook) {
-      return undefined;
+    fillQty: number,
+  ): void {
+    const book = this.books.get(symbol);
+    if (!book) return;
+    const sideRef = book.getSide(toOrderSide(side));
+    const head = sideRef.getQueue(price)?.head();
+    if (!head) return;
+    const newRemaining = head.remainingSize - fillQty;
+    sideRef.update({
+      ...head,
+      remainingSize: newRemaining,
+      updatedAt: Date.now(),
+    });
+    const shadow = this.restingOrders.get(head.id);
+    if (shadow) {
+      shadow.remainingQuantity = newRemaining;
+      shadow.timestamp = Date.now();
     }
-
-    return this.getSideBook(symbolBook, side).get(price);
   }
 
-  private getOrCreateSymbolBook(symbol: string) {
-    const existingBook = this.booksBySymbol.get(symbol);
+  removeHead(symbol: string, side: Side, price: number): void {
+    const book = this.books.get(symbol);
+    if (!book) return;
+    const sideRef = book.getSide(toOrderSide(side));
+    const head = sideRef.getQueue(price)?.head();
+    if (!head) return;
+    sideRef.remove(head.id);
+    this.restingOrders.delete(head.id);
+  }
 
-    if (existingBook) {
-      return existingBook;
-    }
+  removeOrder(
+    symbol: string,
+    side: Side,
+    _price: number,
+    orderId: string,
+  ): boolean {
+    const book = this.books.get(symbol);
+    if (!book) return false;
+    const removed = book.getSide(toOrderSide(side)).remove(orderId);
+    if (!removed) return false;
+    this.restingOrders.delete(orderId);
+    return true;
+  }
 
-    const newBook = {
-      bids: new Map<number, RestingOrder[]>(),
-      asks: new Map<number, RestingOrder[]>(),
+  isPriceLevelEmpty(symbol: string, side: Side, price: number): boolean {
+    const queue = this.getQueue(symbol, side, price);
+    return !queue || queue.isEmpty;
+  }
+
+  // BookSide auto-prunes empty queues on remove(); keep this as a noop so
+  // the matching loop's explicit cleanup call is harmless.
+  deletePriceLevel(_symbol: string, _side: Side, _price: number): void {}
+
+  getOrderBookSnapshot(symbol: string): OrderBookSnapshot {
+    const book = this.books.get(symbol);
+    if (!book) return { symbol, bids: [], asks: [] };
+    const { bids, asks } = book.depth();
+    return {
+      symbol,
+      bids: bids.map((level) => ({
+        price: level.price,
+        totalQuantity: level.volume,
+        orderCount: level.orders,
+      })),
+      asks: asks.map((level) => ({
+        price: level.price,
+        totalQuantity: level.volume,
+        orderCount: level.orders,
+      })),
     };
-
-    this.booksBySymbol.set(symbol, newBook);
-    return newBook;
   }
 
-  private getSideBook(
-    symbolBook: { bids: Map<number, RestingOrder[]>; asks: Map<number, RestingOrder[]> },
-    side: Side,
-  ): Map<number, RestingOrder[]> {
-    return side === 'buy' ? symbolBook.bids : symbolBook.asks;
+  private getOrCreateBook(symbol: string): OrderBook {
+    let book = this.books.get(symbol);
+    if (!book) {
+      book = new OrderBook(symbol);
+      this.books.set(symbol, book);
+    }
+    return book;
   }
 
-  private buildLevels(
-    sideBook: Map<number, RestingOrder[]>,
-    side: Side,
-  ) {
-    return Array.from(sideBook.entries())
-      .sort(([priceA], [priceB]) =>
-        side === 'buy' ? priceB - priceA : priceA - priceB,
-      )
-      .map(([price, orders]) => ({
-        price,
-        totalQuantity: orders.reduce(
-          (total, order) => total + order.remainingQuantity,
-          0,
-        ),
-        orderCount: orders.length,
-      }));
+  private getQueue(symbol: string, side: Side, price: number) {
+    const book = this.books.get(symbol);
+    if (!book) return undefined;
+    return book.getSide(toOrderSide(side)).getQueue(price);
   }
 }
 
+function toOrderSide(side: Side): OrderSide {
+  return side === 'buy' ? OrderSide.BUY : OrderSide.SELL;
+}
+
+
+/**
+ * Service that manages the matching engine and its interactions with the orderbook.
+ */
 export class MatchingEngineService {
   private readonly engine: MatchingEngine;
   private readonly adapter: OrderBookAdapter;
@@ -195,10 +256,6 @@ export class MatchingEngineService {
 
   cancelOrder(orderId: string): CancelResult {
     return this.engine.cancelOrder(orderId);
-  }
-
-  updateMarket(symbol: string, market: Market): void {
-    this.engine.updateMarket(symbol, market);
   }
 
   async getSnapshot(marketId: string) {

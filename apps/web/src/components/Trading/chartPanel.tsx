@@ -1,11 +1,11 @@
 "use client";
 
-import { useTradingStore } from '@/store/tradingStore';
-import { useWebSocket } from '@/hooks/useWebSocket';
-import { MarketComponent } from './components/marketComponent';
-import { MarketStats } from './components/marketStats';
-import { TradingChart } from './components/charts/charts';
-import { Button } from '@/components/ui/button';
+import { useTradingStore } from "@/store/tradingStore";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import { MarketComponent } from "./components/marketComponent";
+import { MarketStats } from "./components/marketStats";
+import { Button } from "../ui/button";
+import { TradingChart } from "./components/charts/charts";
 
 // ============ PLACEHOLDER COMPONENTS ============
 
@@ -91,8 +91,6 @@ export const OrderBookPanel = () => {
       <div className="px-4 py-2 border-t border-slate-700 bg-slate-800">
         <div className="text-xs text-slate-400">Spread: $0.50 (0.0006%)</div>
       </div>
-    <div className="flex flex-col h-full p-1">
-      <OrderBook />
     </div>
   );
 };
@@ -137,8 +135,6 @@ export const RecentTradesPanel = () => {
           )}
         </div>
       </div>
-    <div className="flex flex-col h-full ">
-      <RecentTrades />
     </div>
   );
 };
