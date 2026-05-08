@@ -1,4 +1,23 @@
 // Trading Data Types
+
+// Shape returned by GET /markets and GET /markets/:id
+export interface ApiMarket {
+  id: string;
+  symbol: string; // e.g. "SOL-USDC"
+  baseAsset: string; // e.g. "SOL"
+  quoteAsset: string; // e.g. "USDC"
+  tickSize: number;
+  lotSize: number;
+  minOrderSize: number;
+  pricePrecision: number;
+  sizePrecision: number;
+  makerFeeRate: number;
+  takerFeeRate: number;
+  status: "ACTIVE" | "PAUSED" | "DISABLED";
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface Market {
   symbol: string;
   name: string;
@@ -27,7 +46,7 @@ export interface Trade {
   symbol: string;
   price: number;
   size: number;
-  side: 'BUY' | 'SELL';
+  side: "BUY" | "SELL";
   timestamp: number;
 }
 
@@ -41,18 +60,18 @@ export interface UserBalance {
 export interface Order {
   id: string;
   symbol: string;
-  side: 'BUY' | 'SELL';
-  type: 'LIMIT' | 'MARKET';
+  side: "BUY" | "SELL";
+  type: "LIMIT" | "MARKET";
   price: number;
   size: number;
   filled: number;
-  status: 'OPEN' | 'FILLED' | 'CANCELLED';
+  status: "OPEN" | "FILLED" | "CANCELLED";
   timestamp: number;
 }
 
 export interface Position {
   symbol: string;
-  side: 'LONG' | 'SHORT';
+  side: "LONG" | "SHORT";
   size: number;
   entryPrice: number;
   currentPrice: number;
@@ -60,5 +79,5 @@ export interface Position {
   pnlPercent: number;
 }
 
-export type OrderType = 'LIMIT' | 'MARKET';
-export type OrderSide = 'BUY' | 'SELL';
+export type OrderType = "LIMIT" | "MARKET";
+export type OrderSide = "BUY" | "SELL";

@@ -1,10 +1,18 @@
-import { create } from 'zustand';
-import type { Market, OrderBook, Trade, Order, OrderType } from '@/types/trading';
+import { create } from "zustand";
+import type {
+  Market,
+  OrderBook,
+  Trade,
+  Order,
+  OrderType,
+} from "@/types/trading";
 
 interface TradingState {
   // Selected Market
   selectedSymbol: string;
   setSelectedSymbol: (symbol: string) => void;
+  selectedMarketId: string | null;
+  setSelectedMarketId: (id: string) => void;
 
   // OrderBook Data (WebSocket)
   orderBook: OrderBook | null;
@@ -22,19 +30,19 @@ interface TradingState {
   // Trading Form State (UI)
   tradePanel: {
     orderType: OrderType;
-    side: 'BUY' | 'SELL';
+    side: "BUY" | "SELL";
     price: string;
     size: string;
   };
   setOrderType: (type: OrderType) => void;
-  setTradeSide: (side: 'BUY' | 'SELL') => void;
+  setTradeSide: (side: "BUY" | "SELL") => void;
   setPrice: (price: string) => void;
   setSize: (size: string) => void;
   resetTradePanel: () => void;
 
   // Chart State
-  selectedTimeframe: '1m' | '5m' | '15m' | '1h' | '4h' | '1d';
-  setTimeframe: (tf: '1m' | '5m' | '15m' | '1h' | '4h' | '1d') => void;
+  selectedTimeframe: "1m" | "5m" | "15m" | "1h" | "4h" | "1d";
+  setTimeframe: (tf: "1m" | "5m" | "15m" | "1h" | "4h" | "1d") => void;
 
   // WebSocket Connection Status
   wsConnected: boolean;
@@ -42,16 +50,18 @@ interface TradingState {
 }
 
 const initialTradePanel = {
-  orderType: 'LIMIT' as const,
-  side: 'BUY' as const,
-  price: '',
-  size: '',
+  orderType: "LIMIT" as const,
+  side: "BUY" as const,
+  price: "",
+  size: "",
 };
 
 export const useTradingStore = create<TradingState>((set) => ({
   // Market Selection
-  selectedSymbol: 'BTC-PERP',
+  selectedSymbol: "BTC-PERP",
   setSelectedSymbol: (symbol) => set({ selectedSymbol: symbol }),
+  selectedMarketId: null,
+  setSelectedMarketId: (id) => set({ selectedMarketId: id }),
 
   // OrderBook
   orderBook: null,
@@ -90,7 +100,7 @@ export const useTradingStore = create<TradingState>((set) => ({
   resetTradePanel: () => set({ tradePanel: initialTradePanel }),
 
   // Chart
-  selectedTimeframe: '1h',
+  selectedTimeframe: "1h",
   setTimeframe: (timeframe) => set({ selectedTimeframe: timeframe }),
 
   // WebSocket
