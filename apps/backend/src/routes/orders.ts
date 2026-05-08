@@ -126,9 +126,12 @@ router.post("/", async (req: Request, res: Response) => {
           reason,
           orderId: report.orderId,
           marketId,
-          priceDeviation: null,
-          quotePrice: null,
-          quoteAgeMs: null,
+          priceDeviation: report.mpe?.priceDeviation ?? null,
+          quotePrice: report.mpe?.quotePrice ?? null,
+          quoteAgeMs:
+            report.mpe?.quoteAgeMs != null
+              ? Math.round(report.mpe.quoteAgeMs)
+              : null,
         },
       });
     }

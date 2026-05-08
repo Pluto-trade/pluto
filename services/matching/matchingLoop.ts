@@ -2,7 +2,7 @@ import type { IndexedOrder } from "./internalTypes.ts";
 import type { OrderBookPort } from "./orderBookPort.ts";
 import type { ExecutionReport, Trade } from "./types.ts";
 import type { NormalizedOrder } from "./preprocess.ts";
-import { evaluate } from "@repo/mpe";
+import { evaluateWithContext } from "@repo/mpe";
 import type { Market } from "@repo/mpe";
 
 interface ExecuteMatchingResult {
@@ -52,7 +52,7 @@ export function executeMatching(
     }
 
     if (market) {
-      const decision = evaluate(
+      const { decision, context } = evaluateWithContext(
         { id: head.id, price: head.price, side: head.side, timestamp: head.timestamp },
         { ...market, currentTime: Date.now() },
       );
@@ -65,6 +65,12 @@ export function executeMatching(
           filledQuantity: 0,
           remainingQuantity: head.remainingQuantity,
           message: `MPE: ${decision.reason}`,
+          mpe: {
+            reason: decision.reason,
+            priceDeviation: context.deviation,
+            quotePrice: context.market.oraclePrice,
+            quoteAgeMs: context.delay,
+          },
         });
         if (orderBook.isPriceLevelEmpty(incomingOrder.symbol, oppositeSide, bestOppositePrice)) {
           orderBook.deletePriceLevel(incomingOrder.symbol, oppositeSide, bestOppositePrice);

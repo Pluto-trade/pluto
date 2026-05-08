@@ -11,6 +11,7 @@ import {
   YAxis,
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "../ui/Card";
+import { Badge } from "../ui/Badge";
 import { formatUsd } from "../../lib/format";
 import type { LeaderboardRow } from "../../lib/leaderboard";
 
@@ -35,7 +36,7 @@ export function TopSavingsChart({ rows }: { rows: LeaderboardRow[] }) {
   }));
 
   return (
-    <Card>
+    <Card className="overflow-hidden">
       <CardHeader>
         <div>
           <CardTitle>Top 10 by savings</CardTitle>
@@ -43,6 +44,7 @@ export function TopSavingsChart({ rows }: { rows: LeaderboardRow[] }) {
             Estimated USD rescued from bad fills
           </p>
         </div>
+        <Badge variant="good">{data.length} ranked</Badge>
       </CardHeader>
       <CardContent>
         <div className="h-[320px] w-full">
@@ -57,6 +59,21 @@ export function TopSavingsChart({ rows }: { rows: LeaderboardRow[] }) {
                 layout="vertical"
                 margin={{ top: 8, right: 16, left: 8, bottom: 0 }}
               >
+                <defs>
+                  {data.map((d, i) => (
+                    <linearGradient
+                      key={i}
+                      id={`barGrad-${i}`}
+                      x1="0"
+                      y1="0"
+                      x2="1"
+                      y2="0"
+                    >
+                      <stop offset="0%" stopColor={d.color} stopOpacity={0.4} />
+                      <stop offset="100%" stopColor={d.color} stopOpacity={1} />
+                    </linearGradient>
+                  ))}
+                </defs>
                 <CartesianGrid horizontal={false} />
                 <XAxis
                   type="number"
@@ -67,17 +84,18 @@ export function TopSavingsChart({ rows }: { rows: LeaderboardRow[] }) {
                 <YAxis
                   type="category"
                   dataKey="name"
-                  width={120}
+                  width={130}
                   tickLine={false}
                   axisLine={false}
+                  tick={{ fontSize: 12, fill: "rgba(255,255,255,0.62)" }}
                 />
                 <Tooltip
                   cursor={{ fill: "rgba(255,255,255,0.04)" }}
                   formatter={(v: number) => [formatUsd(Number(v)), "Saved"]}
                 />
-                <Bar dataKey="saved" radius={[0, 4, 4, 0]}>
-                  {data.map((d, i) => (
-                    <Cell key={i} fill={d.color} />
+                <Bar dataKey="saved" radius={[0, 6, 6, 0]} barSize={22}>
+                  {data.map((_, i) => (
+                    <Cell key={i} fill={`url(#barGrad-${i})`} />
                   ))}
                 </Bar>
               </BarChart>

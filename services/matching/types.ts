@@ -55,6 +55,14 @@ export interface ExecutionReport {
   filledQuantity: number;
   remainingQuantity: number;
   message?: string;
+  mpe?: MpeReport;
+}
+
+export interface MpeReport {
+  reason: string;
+  priceDeviation: number;
+  quotePrice: number;
+  quoteAgeMs: number;
 }
 
 export interface BookLevel {

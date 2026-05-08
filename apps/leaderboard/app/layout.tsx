@@ -2,7 +2,7 @@ import "./globals.css";
 import { AppBar } from "../components/AppBar";
 
 export const metadata = {
-  title: "galaxyExchange · MPE Leaderboard",
+  title: "Plut0x · MPE Leaderboard",
   description:
     "Top traders protected by the Matching Pre-Engine: orders saved, dollars rescued.",
 };

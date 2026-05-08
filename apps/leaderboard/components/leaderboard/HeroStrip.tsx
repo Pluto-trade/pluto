@@ -14,41 +14,53 @@ function reasonLabel(r: string) {
 export function HeroStrip({ stats }: { stats: GlobalStats }) {
   return (
     <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <Stat
-        label="Total saved"
-        tone="positive"
-        icon={<DollarSign size={16} />}
-        value={formatUsd(stats.totalSavedUsd, { compact: true })}
-        hint={`Across ${formatNumber(stats.totalProtections)} protections`}
-      />
-      <Stat
-        label="Stale cancels"
-        tone="info"
-        icon={<Clock size={16} />}
-        value={formatNumber(stats.staleCancels)}
-        hint="STRONG_STALE + DELAY"
-      />
-      <Stat
-        label="Top reason"
-        tone="warn"
-        icon={<ShieldCheck size={16} />}
-        value={
-          <span className="text-2xl">
-            {stats.topReason ? reasonLabel(stats.topReason.reason) : "—"}
-          </span>
-        }
-        hint={
-          stats.topReason
-            ? `${formatNumber(stats.topReason.count)} events`
-            : "no decisions in window"
-        }
-      />
-      <Stat
-        label="Unique traders"
-        icon={<Users size={16} />}
-        value={formatNumber(stats.uniqueTraders)}
-        hint="Protected at least once"
-      />
+      <div className="fade-up fade-up-1">
+        <Stat
+          label="Total saved"
+          tone="positive"
+          icon={<DollarSign size={16} strokeWidth={2.4} />}
+          value={
+            <span className="grad-mint">
+              {formatUsd(stats.totalSavedUsd, { compact: true })}
+            </span>
+          }
+          hint={`Across ${formatNumber(stats.totalProtections)} protections`}
+        />
+      </div>
+      <div className="fade-up fade-up-2">
+        <Stat
+          label="Stale cancels"
+          tone="info"
+          icon={<Clock size={16} strokeWidth={2.4} />}
+          value={formatNumber(stats.staleCancels)}
+          hint="STRONG_STALE + DELAY"
+        />
+      </div>
+      <div className="fade-up fade-up-3">
+        <Stat
+          label="Top reason"
+          tone="warn"
+          icon={<ShieldCheck size={16} strokeWidth={2.4} />}
+          value={
+            <span className="text-2xl">
+              {stats.topReason ? reasonLabel(stats.topReason.reason) : "—"}
+            </span>
+          }
+          hint={
+            stats.topReason
+              ? `${formatNumber(stats.topReason.count)} events`
+              : "no decisions in window"
+          }
+        />
+      </div>
+      <div className="fade-up fade-up-4">
+        <Stat
+          label="Unique traders"
+          icon={<Users size={16} strokeWidth={2.4} />}
+          value={formatNumber(stats.uniqueTraders)}
+          hint="Protected at least once"
+        />
+      </div>
     </div>
   );
 }
