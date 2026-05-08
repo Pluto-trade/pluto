@@ -9,7 +9,7 @@ export function AppBar() {
           href="/"
           className="text-2xl font-semibold tracking-tight grad-cyan"
         >
-          galaxyExchange
+          Plut0x
         </Link>
         <span className="hidden text-xs font-medium uppercase tracking-[0.2em] text-[var(--color-fg-dim)] sm:inline">
           MPE Leaderboard
