@@ -10,6 +10,7 @@ import {
 } from "./chartPanel";
 import { BottomSheet } from "./bottomPanel";
 import { OrderBook } from "./components/orderbook";
+import { RecentTrades } from "./components/recentTrades";
 
 export const TradingLayout = () => {
   // Initialize WebSocket connection
@@ -33,12 +34,12 @@ export const TradingLayout = () => {
         <div className="flex ">
           {/* OrderBook + Recent Trades (stacked) */}
           <div className="w-80 flex flex-col">
-            <div className="flex-1 overflow-auto rounded-xl">
+            {/*<div className="flex-1 overflow-auto rounded-xl">
               <OrderBook />
-            </div>
-            {/*<div className="flex-1 overflow-auto border-t border-slate-700">
-              <RecentTradesPanel />
             </div>*/}
+            <div className="flex-1 overflow-auto border-t border-slate-700">
+              <RecentTrades />
+            </div>
           </div>
 
           {/* Transaction Form */}
