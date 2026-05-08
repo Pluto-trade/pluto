@@ -3,14 +3,9 @@
 import { useTradingStore } from "@/store/tradingStore";
 import type { OrderBookLevel } from "@/types/trading";
 import { useMemo } from "react";
-import { useMockOrderBook } from "@/hooks/useMockOrderBook";
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
+// rows tro display at once per side (asks/bids)
 const DISPLAY_ROWS = 10;
-
-// ─── Types ────────────────────────────────────────────────────────────────────
-
 interface RowData extends OrderBookLevel {
   /** Running cumulative size from the spread outward */
   total: number;
@@ -19,8 +14,6 @@ interface RowData extends OrderBookLevel {
   /** Stable React key */
   rowKey: string;
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function buildRows(
   levels: OrderBookLevel[],
@@ -94,9 +87,6 @@ const OrderRow = ({ row, side }: OrderRowProps) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export const OrderBook = ({ hideHeader = false }: { hideHeader?: boolean }) => {
-  // Feed the store with simulated live data (swap for useWebSocket in production)
-  useMockOrderBook();
-
   const { orderBook } = useTradingStore();
 
   // ── Compute display rows ─────────────────────────────────────────────────
