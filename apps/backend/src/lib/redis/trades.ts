@@ -56,3 +56,46 @@ export async function getStats24h(
 
   return { volume, high, low };
 }
+
+export interface Candle {
+  time: number;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
+export async function getCandles(
+  marketId: string,
+  intervalMs: number = 60 * 1000, // default 1m
+  limit: number = 1000
+): Promise<Candle[]> {
+  const client = getRedisClient();
+  const rawTrades = await client.lRange(tradeKey(marketId), 0, -1);
+  
+  if (rawTrades.length === 0) return [];
+
+  const trades = rawTrades.map(raw => JSON.parse(raw) as TradeInfo).reverse();
+  const candlesMap = new Map<number, Candle>();
+
+  for (const trade of trades) {
+    const candleTime = Math.floor(trade.timestamp / intervalMs) * intervalMs;
+    const existing = candlesMap.get(candleTime);
+
+    if (!existing) {
+      candlesMap.set(candleTime, {
+        time: candleTime / 1000, // seconds for lightweight-charts
+        open: trade.price,
+        high: trade.price,
+        low: trade.price,
+        close: trade.price,
+      });
+    } else {
+      existing.high = Math.max(existing.high, trade.price);
+      existing.low = Math.min(existing.low, trade.price);
+      existing.close = trade.price;
+    }
+  }
+
+  return Array.from(candlesMap.values()).sort((a, b) => a.time - b.time).slice(-limit);
+}

@@ -62,7 +62,13 @@ export const useTradingStore = create<TradingState>((set) => ({
   selectedSymbol: "BTC-PERP",
   setSelectedSymbol: (symbol) => set({ selectedSymbol: symbol }),
   selectedMarketId: null,
-  setSelectedMarketId: (id) => set({ selectedMarketId: id }),
+  setSelectedMarketId: (id) =>
+    set({
+      selectedMarketId: id,
+      orderBook: null,
+      recentTrades: [],
+      currentMarket: null,
+    }),
 
   // OrderBook
   orderBook: null,
