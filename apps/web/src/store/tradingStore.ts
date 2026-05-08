@@ -9,6 +9,10 @@ import type {
 } from "@/types/trading";
 
 interface TradingState {
+  // User Data
+  userId: string | null;
+  setUserId: (id: string | null) => void;
+
   // Selected Market
   selectedSymbol: string;
   setSelectedSymbol: (symbol: string) => void;
@@ -59,6 +63,10 @@ const initialTradePanel = {
 };
 
 export const useTradingStore = create<TradingState>((set) => ({
+  // User Data
+  userId: null,
+  setUserId: (userId) => set({ userId }),
+
   // Market Selection
   selectedSymbol: "BTC-PERP",
   setSelectedSymbol: (symbol) => set({ selectedSymbol: symbol }),
