@@ -1,5 +1,6 @@
 import { MatchingEngine, type Order, type MatchResult, type CancelResult } from '@repo/matching';
 import type { OrderBookPort, RestingOrder, Side } from '@repo/matching';
+import type { Market } from '@repo/mpe';
 import { marketService } from './market';
 
 class MatchingOrderBook implements OrderBookPort {
@@ -159,6 +160,10 @@ export class MatchingEngineService {
 
   cancelOrder(orderId: string): CancelResult {
     return this.engine.cancelOrder(orderId);
+  }
+
+  updateMarket(symbol: string, market: Market): void {
+    this.engine.updateMarket(symbol, market);
   }
 
   async getSnapshot(marketId: string) {
