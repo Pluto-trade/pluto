@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useWebSocket } from "@/hooks/useWebSocket";
-import { LeftPanel, ChartPanel, TransactionPanel } from "./chartPanel";
+import { LeftPanel, ChartPanel, TransactionPanel } from "./transactionPanel";
 import { BottomSheet } from "./bottomPanel";
 import { OrderBook } from "./components/orderbook";
 import { RecentTrades } from "./components/recentTrades";

@@ -140,7 +140,7 @@ export const RecentTradesPanel = () => {
 };
 
 export const TransactionPanel = () => {
-  const { tradePanel, setOrderType, setTradeSide, setPrice, setSize } =
+  const { tradePanel, setOrderType, setTradeSide, setPrice, setSize, selectedSymbol } =
     useTradingStore();
 
   const handlePlaceOrder = () => {
@@ -148,10 +148,14 @@ export const TransactionPanel = () => {
     console.log("Place order:", tradePanel);
   };
 
+  // Parse symbol to get base and quote assets
+  const [baseAsset, quoteAsset] = selectedSymbol.split('-');
+
   const total = parseFloat(tradePanel.price) * parseFloat(tradePanel.size) || 0;
+  const youReceive = tradePanel.side === "BUY" ? parseFloat(tradePanel.size) : total;
 
   return (
-    <div className="bg-[#081126]/90 border border-[#1e222d] mx-2 ml-4  rounded-xl p-4 my-2 w-80">
+    <div className="bg-[#081126]/90 border border-[#1e222d] mx-2 ml-4 rounded-xl p-4 my-2 w-80">
       <div className="space-y-4">
         {/* Order Type Toggle */}
         <div className="flex gap-2">
@@ -193,7 +197,7 @@ export const TransactionPanel = () => {
         {tradePanel.orderType === "LIMIT" && (
           <div>
             <label className="text-xs text-slate-400 mb-1 block">
-              Price (USD)
+              Price ({quoteAsset})
             </label>
             <input
               type="number"
@@ -208,7 +212,7 @@ export const TransactionPanel = () => {
         {/* Size Input */}
         <div>
           <label className="text-xs text-slate-400 mb-1 block">
-            Size (BTC)
+            Size ({baseAsset})
           </label>
           <input
             type="number"
@@ -244,12 +248,14 @@ export const TransactionPanel = () => {
               : "bg-red-600 hover:bg-red-700 text-white"
           }`}
         >
-          {tradePanel.side} {tradePanel.size || "0"} BTC
+          {tradePanel.side} {tradePanel.size || "0"} {baseAsset}
         </Button>
-        <div className="flex items-center justify-between text-slate-400 text-md">
-          <p>You Recieve</p>
-          <p>0.00 BTC</p>
-        </div>
+
+        {/* You Receive */}
+        {/* <div className="flex items-center justify-between text-slate-400 text-sm">
+          <p>You Receive</p>
+          <p>{youReceive.toFixed(2)} {tradePanel.side === "BUY" ? baseAsset : quoteAsset}</p>
+        </div> */}
       </div>
     </div>
   );

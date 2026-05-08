@@ -1,2 +1,2 @@
 export * from './TradingLayout';
-export * from './chartPanel';
+export * from './transactionPanel';
