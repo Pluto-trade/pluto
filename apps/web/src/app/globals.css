@@ -171,6 +171,16 @@ body {
   transition-delay: 0.4s;
 }
 
+/* ── SCROLLBAR ─────────────────────────────────────────── */
+
+.no-scrollbar {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE / Edge */
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none; /* Chrome / Safari / Opera */
+}
+
 /* ── ORDERBOOK ─────────────────────────────────────────── */
 
 @keyframes flashFade {

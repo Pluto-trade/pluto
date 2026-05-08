@@ -61,7 +61,7 @@ const OrderRow = ({ row, side }: OrderRowProps) => {
   const isBid = side === "bid";
 
   return (
-    <div className="relative flex items-center h-5.5 cursor-pointer group select-none">
+    <div className="relative flex items-center h-6.5 cursor-pointer group select-none">
       {/* ── Depth bar: animates width smoothly, single colour per side ── */}
       <div
         className={`absolute top-0 right-0 h-full transition-[width] duration-300 ease-out ${
@@ -93,7 +93,7 @@ const OrderRow = ({ row, side }: OrderRowProps) => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export const OrderBook = () => {
+export const OrderBook = ({ hideHeader = false }: { hideHeader?: boolean }) => {
   // Feed the store with simulated live data (swap for useWebSocket in production)
   useMockOrderBook();
 
@@ -149,14 +149,16 @@ export const OrderBook = () => {
   }
 
   return (
-    <div className="flex flex-col h-full border border-[#1e222d] bg-[#081126]/90 rounded-lg shadow-lg backdrop-blur-xl overflow-hidden">
+    <div className="flex flex-col h-full border border-[#1e222d] bg-[#081126]/90  shadow-lg backdrop-blur-xl overflow-hidden">
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e222d] shrink-0">
-        <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
-          Order Book
-        </h3>
-        <span className="text-[10px] text-slate-600">{orderBook.symbol}</span>
-      </div>
+      {!hideHeader && (
+        <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e222d] shrink-0">
+          <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
+            Order Book
+          </h3>
+          <span className="text-[10px] text-slate-600">{orderBook.symbol}</span>
+        </div>
+      )}
 
       {/* ── Column labels ───────────────────────────────────────────────── */}
       <div className="flex px-3 py-1 text-[10px] text-slate-600 font-medium border-b border-[#1e222d]/60 shrink-0 select-none">
