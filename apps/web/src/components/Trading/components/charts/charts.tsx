@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from 'react';
-import { createChart, ColorType, CandlestickSeries } from 'lightweight-charts';
+import { createChart, ColorType, CandlestickSeries, IChartApi, ISeriesApi } from 'lightweight-charts';
+import { useTradingStore } from '@/store/tradingStore';
 
 export interface ChartProps {
 	data?: any[];
@@ -14,7 +15,7 @@ export interface ChartProps {
 }
 
 export const TradingChart: React.FC<ChartProps> = ({
-	data,
+	data: propData,
 	colors: {
 		backgroundColor = '#0b0e14', // Matches the app's deep dark background
 		textColor = '#8e98a8',
@@ -25,15 +26,13 @@ export const TradingChart: React.FC<ChartProps> = ({
 	} = {},
 }) => {
 	const chartContainerRef = useRef<HTMLDivElement>(null);
+	const chartRef = useRef<IChartApi | null>(null);
+	const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+	const { selectedMarketId, selectedTimeframe, recentTrades } = useTradingStore();
 
+	// Initialize Chart
 	useEffect(() => {
 		if (!chartContainerRef.current) return;
-
-		const handleResize = () => {
-			if (chartContainerRef.current) {
-				chart.applyOptions({ width: chartContainerRef.current.clientWidth, height: chartContainerRef.current.clientHeight });
-			}
-		};
 
 		const chart = createChart(chartContainerRef.current, {
 			layout: {
@@ -46,9 +45,11 @@ export const TradingChart: React.FC<ChartProps> = ({
 			},
 			width: chartContainerRef.current.clientWidth,
 			height: chartContainerRef.current.clientHeight,
+			timeScale: {
+				timeVisible: true,
+				secondsVisible: false,
+			},
 		});
-
-		chart.timeScale().fitContent();
 
 		const newSeries = chart.addSeries(CandlestickSeries, {
 			upColor,
@@ -58,24 +59,17 @@ export const TradingChart: React.FC<ChartProps> = ({
 			wickDownColor,
 		});
 
-		if (data && data.length > 0) {
-			newSeries.setData(data);
-		} else {
-			// Dummy Data for the candle chart if none is provided
-			const dummyData = [
-				{ time: '2023-10-01', open: 42000.16, high: 42500.84, low: 41800.16, close: 42400.72 },
-				{ time: '2023-10-02', open: 42400.12, high: 43000.90, low: 42300.12, close: 42800.09 },
-				{ time: '2023-10-03', open: 42800.71, high: 43500.71, low: 42500.39, close: 43200.29 },
-				{ time: '2023-10-04', open: 43200.26, high: 43800.26, low: 42900.04, close: 43500.50 },
-				{ time: '2023-10-05', open: 43500.71, high: 44200.85, low: 43100.67, close: 44000.04 },
-				{ time: '2023-10-06', open: 44000.04, high: 44500.40, low: 43600.70, close: 44300.40 },
-				{ time: '2023-10-07', open: 44300.51, high: 45000.83, low: 43800.34, close: 44800.25 },
-				{ time: '2023-10-08', open: 44800.33, high: 45500.17, low: 44200.68, close: 45200.43 },
-				{ time: '2023-10-09', open: 45200.33, high: 46000.20, low: 44800.39, close: 45800.10 },
-				{ time: '2023-10-10', open: 45800.87, high: 46500.69, low: 45500.66, close: 46200.26 },
-			];
-			newSeries.setData(dummyData);
-		}
+		chartRef.current = chart;
+		seriesRef.current = newSeries;
+
+		const handleResize = () => {
+			if (chartContainerRef.current && chartRef.current) {
+				chartRef.current.applyOptions({ 
+					width: chartContainerRef.current.clientWidth, 
+					height: chartContainerRef.current.clientHeight 
+				});
+			}
+		};
 
 		window.addEventListener('resize', handleResize);
 
@@ -83,7 +77,77 @@ export const TradingChart: React.FC<ChartProps> = ({
 			window.removeEventListener('resize', handleResize);
 			chart.remove();
 		};
-	}, [data, backgroundColor, textColor, upColor, downColor, wickUpColor, wickDownColor]);
+	}, [backgroundColor, textColor, upColor, downColor, wickUpColor, wickDownColor]);
+
+	// Fetch historical data
+	useEffect(() => {
+		if (!selectedMarketId || !seriesRef.current) return;
+
+		const fetchHistory = async () => {
+			try {
+				const response = await fetch(`http://localhost:3001/orderbook/${selectedMarketId}/candles?interval=${selectedTimeframe}`);
+				const history = await response.json();
+				if (Array.isArray(history) && history.length > 0) {
+					seriesRef.current?.setData(history);
+					chartRef.current?.timeScale().fitContent();
+				} else if (propData && propData.length > 0) {
+					seriesRef.current?.setData(propData);
+				}
+			} catch (error) {
+				console.error("Failed to fetch candle history:", error);
+			}
+		};
+
+		fetchHistory();
+	}, [selectedMarketId, selectedTimeframe, propData]);
+
+	// Real-time updates
+	useEffect(() => {
+		if (!seriesRef.current || recentTrades.length === 0) return;
+
+		const lastTrade = recentTrades[0];
+		const timeframeMap: Record<string, number> = {
+			"1m": 60,
+			"5m": 300,
+			"15m": 900,
+			"1h": 3600,
+			"4h": 14400,
+			"1d": 86400,
+		};
+		const intervalSec = timeframeMap[selectedTimeframe] || 60;
+		const tradeTimeSec = Math.floor(lastTrade.timestamp / 1000);
+		const candleTimeSec = Math.floor(tradeTimeSec / intervalSec) * intervalSec;
+
+		// Get the last data point to maintain OHLC
+		// @ts-ignore - access internal data to avoid full re-render or complex state management
+		const data = seriesRef.current.data();
+		const lastCandle = data.length > 0 ? data[data.length - 1] : null;
+
+		if (lastCandle && (candleTimeSec as any) < lastCandle.time) {
+			// Trade is older than the last candle, skip it to avoid "Cannot update oldest data"
+			return;
+		}
+
+		if (lastCandle && (candleTimeSec as any) === lastCandle.time) {
+			// Update existing candle
+			seriesRef.current.update({
+				time: candleTimeSec as any,
+				open: lastCandle.open,
+				high: Math.max(lastCandle.high, lastTrade.price),
+				low: Math.min(lastCandle.low, lastTrade.price),
+				close: lastTrade.price,
+			});
+		} else {
+			// Start new candle
+			seriesRef.current.update({
+				time: candleTimeSec as any,
+				open: lastTrade.price,
+				high: lastTrade.price,
+				low: lastTrade.price,
+				close: lastTrade.price,
+			});
+		}
+	}, [recentTrades, selectedTimeframe]);
 
 	return <div ref={chartContainerRef} className="w-full h-full min-h-[400px]" />;
 };

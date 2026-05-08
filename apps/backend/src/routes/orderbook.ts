@@ -3,6 +3,7 @@ import { orderbookService } from '../services/orderbook';
 import { matchingEngineService } from '../services/matchingEngine';
 import { orderService } from '../services/order';
 import { TickerInfo } from '../types';
+import { getCandles } from '../lib/redis/trades';
 
 const router = Router();
 
@@ -70,13 +71,26 @@ router.get('/:marketId/ticker', async (req: Request, res: Response) => {
   }
 });
 
-// GET /markets/:marketId/candles - Get candlestick data (optional for now)
+// GET /markets/:marketId/candles - Get candlestick data
 router.get('/:marketId/candles', async (req: Request, res: Response) => {
   try {
-    res.json({ message: 'Candles endpoint - coming soon' });
+    const marketId = Array.isArray(req.params.marketId) ? req.params.marketId[0] : req.params.marketId;
+    const interval = req.query.interval as string || '1m';
+    
+    let intervalMs = 60 * 1000;
+    if (interval === '5m') intervalMs = 5 * 60 * 1000;
+    else if (interval === '15m') intervalMs = 15 * 60 * 1000;
+    else if (interval === '1h') intervalMs = 60 * 60 * 1000;
+    else if (interval === '4h') intervalMs = 4 * 60 * 60 * 1000;
+    else if (interval === '1d') intervalMs = 24 * 60 * 60 * 1000;
+
+    const candles = await getCandles(marketId, intervalMs);
+    res.json(candles);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
 });
+
+
 
 export default router;

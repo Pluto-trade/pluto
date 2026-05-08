@@ -11,8 +11,14 @@ interface BackendLevel {
 }
 
 export const useWebSocket = () => {
-  const { selectedMarketId, selectedSymbol, setOrderBook, setWsConnected } =
-    useTradingStore();
+  const {
+    selectedMarketId,
+    selectedSymbol,
+    setOrderBook,
+    addRecentTrade,
+    setCurrentMarket,
+    setWsConnected,
+  } = useTradingStore();
 
   // Keep a stable ref to the latest marketId so the cleanup can unsubscribe
   // the correct market even if the effect re-runs before the socket closes.
@@ -28,13 +34,15 @@ export const useWebSocket = () => {
     ws.onopen = () => {
       console.log("[WS] connected");
       setWsConnected(true);
-      ws.send(
-        JSON.stringify({
-          action: "subscribe",
-          channel: "orderbook",
-          params: { marketId: selectedMarketId },
-        }),
-      );
+      ["orderbook", "trades", "ticker"].forEach((channel) => {
+        ws.send(
+          JSON.stringify({
+            action: "subscribe",
+            channel,
+            params: { marketId: selectedMarketId },
+          }),
+        );
+      });
     };
 
     ws.onmessage = (event) => {
@@ -61,6 +69,26 @@ export const useWebSocket = () => {
         };
 
         setOrderBook(orderBook);
+      } else if (message.channel === "trades") {
+        const trade = message.data;
+        addRecentTrade({
+          id: `${trade.buyOrderId}-${trade.sellOrderId}-${trade.timestamp}`,
+          symbol: selectedSymbol,
+          price: trade.price,
+          size: trade.size,
+          side: "BUY", // Default for now
+          timestamp: trade.timestamp,
+        });
+      } else if (message.channel === "ticker") {
+        setCurrentMarket({
+          symbol: selectedSymbol,
+          name: selectedSymbol,
+          lastPrice: message.data.lastPrice,
+          high24h: message.data.high24h,
+          low24h: message.data.low24h,
+          volume24h: message.data.volume24h,
+          change24h: 0,
+        });
       }
     };
 
@@ -76,16 +104,25 @@ export const useWebSocket = () => {
     return () => {
       // Unsubscribe cleanly before tearing down
       if (ws.readyState === WebSocket.OPEN) {
-        ws.send(
-          JSON.stringify({
-            action: "unsubscribe",
-            channel: "orderbook",
-            params: { marketId: marketIdRef.current },
-          }),
-        );
+        ["orderbook", "trades", "ticker"].forEach((channel) => {
+          ws.send(
+            JSON.stringify({
+              action: "unsubscribe",
+              channel,
+              params: { marketId: marketIdRef.current },
+            }),
+          );
+        });
         ws.close();
       }
     };
     // Re-run whenever the resolved marketId changes (user switches symbol)
-  }, [selectedMarketId, selectedSymbol, setOrderBook, setWsConnected]);
+  }, [
+    selectedMarketId,
+    selectedSymbol,
+    setOrderBook,
+    addRecentTrade,
+    setCurrentMarket,
+    setWsConnected,
+  ]);
 };
