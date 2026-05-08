@@ -34,40 +34,18 @@ export function useAppBarSession() {
 
     useEffect(() => {
         const syncUser = async () => {
-            console.log("Sync check:", {
-                authenticated,
-                userEmail,
-                userName,
-                walletAddress,
-                googleAccount,
-                walletAccounts,
-            });
 
             if (!authenticated || !userEmail || !userName || !walletAddress) {
-                console.log("Sync skipped - missing:", {
-                    authenticated,
-                    userEmail,
-                    userName,
-                    walletAddress,
-                });
                 return;
             }
 
             const syncKey = `${userEmail}:${walletAddress}`;
             if (lastSyncedKey.current === syncKey) {
-                console.log("Already synced:", syncKey);
                 return;
             }
 
             try {
                 const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") + "/users/sync";
-                console.log("Syncing to:", apiUrl);
-                const payload = {
-                    email: userEmail,
-                    name: userName,
-                    walletAddress,
-                };
-                console.log("Payload:", payload);
 
                 const res = await fetch(apiUrl, {
                     method: "POST",
@@ -77,19 +55,15 @@ export function useAppBarSession() {
                     body: JSON.stringify(payload),
                 });
 
-                console.log("Response status:", res.status);
-
                 if (res.ok) {
                     lastSyncedKey.current = syncKey;
                     const data = await res.json();
-                    console.log("User synced successfully:", data);
                     setUserId(data.id);
                 } else {
                     const error = await res.json();
-                    console.error("Sync failed:", res.status, error);
                 }
             } catch (err) {
-                console.error("Sync error:", err);
+                // Sync error silently
             }
         };
 
