@@ -65,6 +65,47 @@ export async function getOrder(orderId: string) {
   }
 }
 
+export async function getActiveOrdersByUser(userId: string) {
+  try {
+    const client = getRedisClient();
+    const orders: Array<Record<string, string>> = [];
+    // console.log(`Scanning orders for user ${userId}...`);
+
+    for await (const key of client.scanIterator({
+      MATCH: "order:*",
+      COUNT: 200,
+    })) {
+      const orderKey = String(key);
+      const orderIdFromKey = orderKey.startsWith("order:")
+        ? orderKey.slice("order:".length)
+        : orderKey;
+      const order = await client.hGetAll(orderKey);
+      if (!order.userId || order.userId !== userId) continue;
+      const size = Number(order.size ?? "0");
+      if (!Number.isFinite(size) || size <= 0) continue;
+
+      const marketId = order.marketId;
+      const side = order.side as OrderSide | undefined;
+      const price = order.price;
+      const orderId = order.orderId || order.id || orderIdFromKey;
+      if (!marketId || !side || !price || !orderId) continue;
+
+      const { priceQueue } = keys(marketId, side, price);
+      if (!priceQueue) continue;
+      const existsInBook = await client.lPos(priceQueue, orderId);
+      if (existsInBook === null) continue;
+      orders.push({ ...order, orderId });
+    }
+
+    // console.log(`Found ${orders.length} active orders for user ${userId}`);
+
+    return orders;
+  } catch (error) {
+    console.log(error);
+    throw new Error("Can't get active orders for user");
+  }
+}
+
 // get metadata for one price level
 export async function getPriceLevelMeta(
   marketId: string,

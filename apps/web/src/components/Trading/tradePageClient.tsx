@@ -1,7 +1,7 @@
-"use client";
+'use client';
 
-import { useMarket } from "@/hooks/useMarket";
-import { TradingLayout } from "@/components/Trading/TradingLayout";
+import { useMarket } from '@/hooks/useMarket';
+import { TradingLayout } from '@/components/Trading/TradingLayout';
 
 function LoadingScreen() {
   return (
@@ -36,11 +36,9 @@ function NotFoundScreen({ symbol }: { symbol: string }) {
     <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
       <div className="flex flex-col items-center gap-2 text-center px-4">
         <p className="text-slate-300 font-medium">
-          Market{" "}
-          <span className="font-mono text-indigo-400">
-            {symbol.toUpperCase()}
-          </span>{" "}
-          not found
+          Market{' '}
+          <span className="font-mono text-indigo-400">{symbol.toUpperCase()}</span>
+          {' '}not found
         </p>
         <p className="text-sm text-slate-500">
           This market may not exist or is currently disabled.
@@ -60,8 +58,8 @@ export function TradePageClient({ symbol }: { symbol: string }) {
   const { market, isLoading, error, notFound } = useMarket(symbol);
 
   if (isLoading) return <LoadingScreen />;
-  if (error) return <ErrorScreen error={error} />;
-  if (notFound) return <NotFoundScreen symbol={symbol} />;
+  if (error)     return <ErrorScreen error={error} />;
+  if (notFound)  return <NotFoundScreen symbol={symbol} />;
 
   return <TradingLayout />;
 }
