@@ -58,21 +58,27 @@ const TradeRow = ({ trade }: { trade: Trade }) => {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export const RecentTrades = () => {
+export const RecentTrades = ({
+  hideHeader = false,
+}: {
+  hideHeader?: boolean;
+}) => {
   // Swap for real WS feed in production
   useMockRecentTrades();
 
   const { recentTrades, selectedSymbol } = useTradingStore();
 
   return (
-    <div className="flex flex-col h-full border border-[#1e222d] bg-[#081126]/90 rounded-lg shadow-lg backdrop-blur-xl overflow-hidden">
+    <div className="flex flex-col h-full border border-[#1e222d] bg-[#081126]/90  shadow-lg backdrop-blur-xl overflow-hidden">
       {/* ── Header ──────────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e222d] shrink-0">
-        <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
-          Recent Trades
-        </h3>
-        <span className="text-[10px] text-slate-600">{selectedSymbol}</span>
-      </div>
+      {!hideHeader && (
+        <div className="flex items-center justify-between px-3 py-2 border-b border-[#1e222d] shrink-0">
+          <h3 className="text-[11px] font-semibold text-slate-400 uppercase tracking-widest">
+            Recent Trades
+          </h3>
+          <span className="text-[10px] text-slate-600">{selectedSymbol}</span>
+        </div>
+      )}
 
       {/* ── Column labels ───────────────────────────────────────────────── */}
       <div className="flex items-center px-3 py-1 border-b border-[#1e222d]/60 shrink-0 select-none">
@@ -88,7 +94,7 @@ export const RecentTrades = () => {
       </div>
 
       {/* ── Scrollable trade list ────────────────────────────────────────── */}
-      <div className="h-130 overflow-y-auto overflow-x-hidden scrollbar-thin scrollbar-track-transparent scrollbar-thumb-slate-700/50">
+      <div className="h-140 overflow-y-auto overflow-x-hidden no-scrollbar">
         {recentTrades.length === 0 ? (
           <div className="flex items-center justify-center h-full">
             <p className="text-[11px] text-slate-600">Waiting for trades…</p>
