@@ -1,0 +1,144 @@
+@import "tailwindcss";
+
+/* Plut0x brand palette — kept in sync with apps/web */
+@theme {
+  --color-space: #000008;
+  --color-space-2: #06061a;
+  --color-cyan: #00d4ff;
+  --color-purple: #7b4fdb;
+  --color-magenta: #c64bff;
+  --color-red: #ff3a5a;
+  --color-green: #00ff88;
+  --color-amber: #ffb547;
+  --color-tan: #c8b898;
+  --color-rust: #8a5040;
+  --color-ice: #b8d4e4;
+
+  --color-surface-0: #000008;
+  --color-surface-1: rgba(255, 255, 255, 0.03);
+  --color-surface-2: rgba(255, 255, 255, 0.06);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-strong: rgba(255, 255, 255, 0.16);
+
+  --color-fg: #ffffff;
+  --color-fg-muted: rgba(255, 255, 255, 0.62);
+  --color-fg-dim: rgba(255, 255, 255, 0.42);
+
+  --font-sans:
+    -apple-system, BlinkMacSystemFont, "Segoe UI", "Inter", "Helvetica Neue",
+    Arial, sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", ui-monospace, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background: var(--color-space);
+  color: var(--color-fg);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  position: relative;
+  min-height: 100vh;
+  background-image:
+    radial-gradient(1200px 700px at 80% -10%, rgba(123, 79, 219, 0.18), transparent 60%),
+    radial-gradient(1000px 600px at -10% 30%, rgba(0, 212, 255, 0.12), transparent 60%),
+    radial-gradient(800px 400px at 50% 110%, rgba(0, 255, 136, 0.06), transparent 60%);
+}
+
+/* faint grid texture, fades to center via mask */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 56px 56px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 0%, transparent 90%);
+          mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, black 0%, transparent 90%);
+  z-index: 0;
+}
+
+main, header, nav { position: relative; z-index: 1; }
+
+/* gradient text helper */
+.grad-cyan {
+  background: linear-gradient(90deg, #00d4ff 0%, #7b4fdb 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.grad-warm {
+  background: linear-gradient(90deg, #ffb547 0%, #ff3a5a 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.grad-mint {
+  background: linear-gradient(90deg, #00ff88 0%, #00d4ff 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* live pulse */
+@keyframes ping-soft {
+  75%, 100% { transform: scale(2); opacity: 0; }
+}
+.animate-ping-soft { animation: ping-soft 2s cubic-bezier(0, 0, 0.2, 1) infinite; }
+
+/* fade up on load */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fade-up { animation: fade-up 0.5s ease forwards; }
+.fade-up-1 { animation-delay: 60ms; opacity: 0; }
+.fade-up-2 { animation-delay: 120ms; opacity: 0; }
+.fade-up-3 { animation-delay: 180ms; opacity: 0; }
+.fade-up-4 { animation-delay: 240ms; opacity: 0; }
+
+/* recharts skin */
+.recharts-default-tooltip {
+  background: rgba(6, 6, 26, 0.95) !important;
+  border: 1px solid var(--color-border-strong) !important;
+  border-radius: 12px !important;
+  padding: 10px 14px !important;
+  font-size: 12px !important;
+  color: var(--color-fg) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4) !important;
+}
+.recharts-tooltip-label {
+  color: var(--color-fg-muted) !important;
+  margin-bottom: 4px !important;
+  font-weight: 500;
+}
+.recharts-cartesian-axis-tick-value {
+  fill: var(--color-fg-dim) !important;
+  font-size: 11px;
+}
+.recharts-cartesian-grid line {
+  stroke: rgba(255, 255, 255, 0.05) !important;
+}
+.recharts-legend-item-text {
+  color: var(--color-fg-muted) !important;
+}
+
+/* selection */
+::selection {
+  background: rgba(0, 212, 255, 0.3);
+  color: white;
+}

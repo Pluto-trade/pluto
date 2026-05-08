@@ -1,7 +1,11 @@
-import type { MatchResult, OrderStatus, RestingOrder } from "./types.ts";
+import type { MatchResult, MpeReport, OrderStatus, RestingOrder } from "./types.ts";
 import type { NormalizedOrder } from "./preprocess.ts";
 
-export function buildRejectedResult(orderId: string, message: string): MatchResult {
+export function buildRejectedResult(
+  orderId: string,
+  message: string,
+  mpe?: MpeReport,
+): MatchResult {
   return {
     trades: [],
     executionReports: [
@@ -11,6 +15,7 @@ export function buildRejectedResult(orderId: string, message: string): MatchResu
         filledQuantity: 0,
         remainingQuantity: 0,
         message,
+        mpe,
       },
     ],
     orderStatus: "rejected",

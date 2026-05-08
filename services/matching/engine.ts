@@ -10,7 +10,7 @@ import { executeMatching } from "./matchingLoop.ts";
 import type { OrderBookPort } from "./orderBookPort.ts";
 import { normalizeSymbol, preprocessOrder } from "./preprocess.ts";
 import { buildAcceptedResult, buildRejectedResult } from "./results.ts";
-import { evaluate } from "@repo/mpe";
+import { evaluateWithContext } from "@repo/mpe";
 import type { Market } from "@repo/mpe";
 
 export class MatchingEngine {
@@ -41,12 +41,17 @@ export class MatchingEngine {
     const market = this.marketSnapshots.get(incomingOrder.symbol);
 
     if (market && incomingOrder.type === "limit") {
-      const decision = evaluate(
+      const { decision, context } = evaluateWithContext(
         { id: incomingOrder.id, price: incomingOrder.price, side: incomingOrder.side, timestamp: incomingOrder.timestamp },
         { ...market, currentTime: Date.now() },
       );
       if (decision.decision === "CANCEL") {
-        return buildRejectedResult(order.id, `MPE: ${decision.reason}`);
+        return buildRejectedResult(order.id, `MPE: ${decision.reason}`, {
+          reason: decision.reason,
+          priceDeviation: context.deviation,
+          quotePrice: context.market.oraclePrice,
+          quoteAgeMs: context.delay,
+        });
       }
     }
 
