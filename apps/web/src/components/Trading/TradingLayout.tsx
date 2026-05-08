@@ -85,21 +85,23 @@ export const TradingLayout = () => {
       {/* Main Content Grid */}
       <div className="flex flex-1">
         {/* LEFT PANEL - Pairs & Stats */}
-        <div>
+        {/*<div>
           <LeftPanel />
-        </div>
+        </div>*/}
 
         {/* CENTER - Chart */}
-        <div className="flex-1 flex flex-col">
+        <div className="flex-1 flex flex-col mt-4">
           <ChartPanel />
         </div>
 
         {/* RIGHT - Tabbed market panel + order form */}
         <div className="flex">
-          <div className="w-80 flex flex-col p-2">
+          <div className="w-80 flex flex-col p-2 mt-2">
             <MarketPanel />
           </div>
-          <TransactionPanel />
+          <div className="mt-2 flex flex-1">
+            <TransactionPanel />
+          </div>
         </div>
       </div>
 
