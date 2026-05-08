@@ -21,6 +21,7 @@ interface TradingState {
 
   // Recent Trades (WebSocket)
   recentTrades: Trade[];
+  setRecentTrades: (trades: Trade[]) => void;
   addRecentTrade: (trade: Trade) => void;
   clearTrades: () => void;
 
@@ -76,6 +77,7 @@ export const useTradingStore = create<TradingState>((set) => ({
 
   // Recent Trades
   recentTrades: [],
+  setRecentTrades: (recentTrades) => set({ recentTrades }),
   addRecentTrade: (trade) =>
     set((state) => ({
       recentTrades: [trade, ...state.recentTrades].slice(0, 50), // Keep last 50

@@ -1,7 +1,6 @@
 "use client";
 
 import { useTradingStore } from "@/store/tradingStore";
-import { useMockRecentTrades } from "@/hooks/useMockRecentTrades";
 import type { Trade } from "@/types/trading";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -63,9 +62,6 @@ export const RecentTrades = ({
 }: {
   hideHeader?: boolean;
 }) => {
-  // Swap for real WS feed in production
-  useMockRecentTrades();
-
   const { recentTrades, selectedSymbol } = useTradingStore();
 
   return (

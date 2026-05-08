@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useTradingStore } from "@/store/tradingStore";
 import type { OrderBook } from "@/types/trading";
+import { getMarketTrades } from "@/lib/api/trades";
 
 // Shape of a single level as the backend sends it
 interface BackendLevel {
@@ -16,6 +17,7 @@ export const useWebSocket = () => {
     selectedSymbol,
     setOrderBook,
     addRecentTrade,
+    setRecentTrades,
     setCurrentMarket,
     setWsConnected,
   } = useTradingStore();
@@ -28,6 +30,15 @@ export const useWebSocket = () => {
   useEffect(() => {
     // Wait until useMarket has resolved the symbol → marketId
     if (!selectedMarketId) return;
+
+    // 1. Fetch initial trades history
+    getMarketTrades(selectedMarketId)
+      .then((trades) => {
+        setRecentTrades(trades);
+      })
+      .catch((err) => {
+        console.error("[Trades] failed to fetch initial history:", err);
+      });
 
     const ws = new WebSocket("ws://localhost:3001/ws");
 
