@@ -7,7 +7,7 @@ export async function getUserOrders(userId: string, limit = 100): Promise<Order[
   
   return orders.map(o => ({
     id: o.id,
-    symbol: o.marketId, // We might want to resolve this to a symbol if the backend provides it, or keep marketId
+    symbol: o.market?.symbol || o.marketId, 
     side: o.side,
     type: o.type,
     price: Number(o.price),
@@ -24,7 +24,7 @@ export async function getUserOpenOrders(userId: string): Promise<Order[]> {
   
   return orders.map(o => ({
     id: o.id,
-    symbol: o.marketId,
+    symbol: o.market?.symbol || o.marketId,
     side: o.side,
     type: o.type,
     price: Number(o.price),
