@@ -78,6 +78,35 @@ class MatchingOrderBook implements OrderBookPort {
     return this.getSideBook(symbolBook, side).get(price);
   }
 
+  peekHead(symbol: string, side: Side, price: number): RestingOrder | undefined {
+    return this.getQueueAtPrice(symbol, side, price)?.[0];
+  }
+
+  applyFillToHead(symbol: string, side: Side, price: number, fillQty: number): void {
+    const head = this.getQueueAtPrice(symbol, side, price)?.[0];
+    if (head) {
+      head.remainingQuantity -= fillQty;
+    }
+  }
+
+  removeHead(symbol: string, side: Side, price: number): void {
+    this.getQueueAtPrice(symbol, side, price)?.shift();
+  }
+
+  removeOrder(symbol: string, side: Side, price: number, orderId: string): boolean {
+    const queue = this.getQueueAtPrice(symbol, side, price);
+    if (!queue) return false;
+    const idx = queue.findIndex((o) => o.id === orderId);
+    if (idx === -1) return false;
+    queue.splice(idx, 1);
+    return true;
+  }
+
+  isPriceLevelEmpty(symbol: string, side: Side, price: number): boolean {
+    const queue = this.getQueueAtPrice(symbol, side, price);
+    return !queue || queue.length === 0;
+  }
+
   private getOrCreateSymbolBook(symbol: string) {
     const existingBook = this.booksBySymbol.get(symbol);
 
