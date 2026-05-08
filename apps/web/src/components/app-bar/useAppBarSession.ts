@@ -2,12 +2,20 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useLoginWithOAuth, usePrivy } from "@privy-io/react-auth";
+import { useTradingStore } from "@/store/tradingStore";
 
 export function useAppBarSession() {
-    const { ready, authenticated, logout, user, linkWallet } = usePrivy();
+    const { ready, authenticated, logout: privyLogout, user, linkWallet } = usePrivy();
     const { initOAuth, loading } = useLoginWithOAuth();
+    const { setUserId } = useTradingStore();
     const lastSyncedKey = useRef<string | null>(null);
     const [oauthError, setOauthError] = useState<string | null>(null);
+
+    const logout = async () => {
+        await privyLogout();
+        setUserId(null);
+        lastSyncedKey.current = null;
+    };
 
     const googleAccount = user?.linkedAccounts?.find(
         (account) => account.type === "google_oauth"
@@ -75,6 +83,7 @@ export function useAppBarSession() {
                     lastSyncedKey.current = syncKey;
                     const data = await res.json();
                     console.log("User synced successfully:", data);
+                    setUserId(data.id);
                 } else {
                     const error = await res.json();
                     console.error("Sync failed:", res.status, error);
@@ -85,7 +94,7 @@ export function useAppBarSession() {
         };
 
         void syncUser();
-    }, [authenticated, userEmail, userName, walletAddress, googleAccount, walletAccounts]);
+    }, [authenticated, userEmail, userName, walletAddress, googleAccount, walletAccounts, setUserId]);
 
     const handleGoogleLogin = async () => {
         setOauthError(null);

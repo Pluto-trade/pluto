@@ -1,26 +1,42 @@
+import { useUserOrders, useOpenOrders } from "@/hooks/useApi";
+
 export const BottomSheet = () => {
-	const openOrders = [
-		{ time: '22:20:15', pair: 'BTC/USD', side: 'BUY', type: 'LIMIT', price: '43,200.00', size: '0.0500', filled: '0.0000', total: '2,160.00 USD', action: 'Cancel' },
-		{ time: '22:18:42', pair: 'ETH/USD', side: 'SELL', type: 'LIMIT', price: '2,400.00', size: '0.1000', filled: '0.0000', total: '240.00 USD', action: 'Cancel' },
-		{ time: '22:15:00', pair: 'SOL/USD', side: 'BUY', type: 'LIMIT', price: '98.50', size: '10.0000', filled: '0.0000', total: '985.00 USD', action: 'Cancel' },
-	];
+	const { data: userOrders = [] } = useUserOrders();
+	const { data: openOrdersData = [] } = useOpenOrders();
+
+	const openOrders = openOrdersData.map(order => ({
+		time: new Date(order.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+		pair: order.symbol,
+		side: order.side,
+		type: order.type,
+		price: order.price?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || 'MARKET',
+		size: order.size.toFixed(4),
+		filled: order.filled.toFixed(4),
+		total: order.price ? (order.price * order.size).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' USD' : '-',
+		action: 'Cancel',
+		id: order.id
+	}));
 
 	const positions = [
 		{ pair: 'BTC/USD', size: '0.0250', avgPrice: '42,800.00', markPrice: '43,336.00', plUsd: '+13.40', plPct: '+1.25%' },
 	];
 
-	const orderHistory = [
-		{ time: '22:15:10', pair: 'SOL/USD', side: 'BUY', type: 'LIMIT', price: '95.00', size: '0.2000', status: 'FILLED' },
-		{ time: '22:10:05', pair: 'ADA/USD', side: 'SELL', type: 'LIMIT', price: '0.5000', size: '100.0000', status: 'FILLED' },
-		{ time: '22:05:30', pair: 'MATIC/USD', side: 'BUY', type: 'LIMIT', price: '0.8000', size: '50.0000', status: 'FILLED' },
-	];
+	const formattedOrderHistory = userOrders.map(order => ({
+		time: new Date(order.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+		pair: order.symbol, // This is marketId, could be resolved to symbol if needed
+		side: order.side,
+		type: order.type,
+		price: order.price?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || 'MARKET',
+		size: order.size.toFixed(4),
+		status: order.status
+	}));
 
 	return (
 		<div className="p-4 grid h-full w-full overflow-hidden">
 			<div className="grid grid-cols-[1.3fr_0.85fr_1.15fr] gap-4 h-full">
 				{/* Open Orders */}
 				<div className=" p-4 bg-[#081126]/90 border border-[#1e222d] shadow-lg rounded-xl flex flex-col min-w-0 backdrop-blur-xl">
-					<h4 className="text-[14px] font-semibold text-white mb-3">Open Orders (2)</h4>
+					<h4 className="text-[14px] font-semibold text-white mb-3">Open Orders ({openOrders.length})</h4>
 					
 					<div className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr_1.5fr_0.8fr] items-center text-[11px] text-[#8e98a8] font-medium pb-2 border-b border-[#2a2e39]/50 mb-1">
 						<span>Time</span>
@@ -35,19 +51,25 @@ export const BottomSheet = () => {
 					</div>
 					
 					<div className="flex-1 overflow-y-auto max-h-18.5 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
-						{openOrders.map((item, i) => (
-							<div key={i} className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr_1.5fr_0.8fr] items-center text-[11px] text-slate-300 py-2.5 border-b border-[#2a2e39]/30 last:border-0 hover:bg-[#1e222d]/50 transition">
-								<span>{item.time}</span>
-								<span className="text-white">{item.pair}</span>
-								<span className={item.side === 'BUY' ? 'text-[#00c076]' : 'text-[#ff3b30]'}>{item.side}</span>
-								<span>{item.type}</span>
-								<span className="text-white">{item.price}</span>
-								<span>{item.size}</span>
-								<span>{item.filled}</span>
-								<span className="text-white">{item.total}</span>
-								<button className="hover:text-white transition text-left">{item.action}</button>
+						{openOrders.length === 0 ? (
+							<div className="flex items-center justify-center h-full py-4 text-[11px] text-slate-500">
+								No open orders.
 							</div>
-						))}
+						) : (
+							openOrders.map((item, i) => (
+								<div key={i} className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr_1.5fr_0.8fr] items-center text-[11px] text-slate-300 py-2.5 border-b border-[#2a2e39]/30 last:border-0 hover:bg-[#1e222d]/50 transition">
+									<span>{item.time}</span>
+									<span className="text-white">{item.pair}</span>
+									<span className={item.side === 'BUY' ? 'text-[#00c076]' : 'text-[#ff3b30]'}>{item.side}</span>
+									<span>{item.type}</span>
+									<span className="text-white">{item.price}</span>
+									<span>{item.size}</span>
+									<span>{item.filled}</span>
+									<span className="text-white">{item.total}</span>
+									<button className="hover:text-white transition text-left">{item.action}</button>
+								</div>
+							))
+						)}
 					</div>
 				</div>
 
@@ -80,7 +102,7 @@ export const BottomSheet = () => {
 
 				{/* Order History */}
 				<div className="flex-1 p-4 bg-[#081126]/90 border border-[#1e222d] shadow-lg rounded-xl flex flex-col min-w-0 backdrop-blur-xl">
-					<h4 className="text-[14px] font-semibold text-white mb-3">Order History</h4>
+					<h4 className="text-[14px] font-semibold text-white mb-3">Order History ({formattedOrderHistory.length})</h4>
 					
 					<div className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr] items-center text-[11px] text-[#8e98a8] font-medium pb-2 border-b border-[#2a2e39]/50 mb-1 shrink-0">
 						<span>Time</span>
@@ -93,17 +115,23 @@ export const BottomSheet = () => {
 					</div>
 					
 					<div className="flex-1 overflow-y-auto max-h-18.5 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
-						{orderHistory.map((item, i) => (
-							<div key={i} className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr] items-center text-[11px] text-slate-300 py-2.5 border-b border-[#2a2e39]/30 last:border-0 hover:bg-[#1e222d]/50 transition">
-								<span>{item.time}</span>
-								<span className="text-white">{item.pair}</span>
-								<span className={item.side === 'BUY' ? 'text-[#00c076]' : 'text-[#ff3b30]'}>{item.side}</span>
-								<span>{item.type}</span>
-								<span className="text-white">{item.price}</span>
-								<span>{item.size}</span>
-								<span className="text-[#00c076]">{item.status}</span>
+						{formattedOrderHistory.length === 0 ? (
+							<div className="flex items-center justify-center h-full py-4 text-[11px] text-slate-500">
+								No order history found.
 							</div>
-						))}
+						) : (
+							formattedOrderHistory.map((item, i) => (
+								<div key={i} className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr] items-center text-[11px] text-slate-300 py-2.5 border-b border-[#2a2e39]/30 last:border-0 hover:bg-[#1e222d]/50 transition">
+									<span>{item.time}</span>
+									<span className="text-white">{item.pair}</span>
+									<span className={item.side === 'BUY' ? 'text-[#00c076]' : 'text-[#ff3b30]'}>{item.side}</span>
+									<span>{item.type}</span>
+									<span className="text-white">{item.price}</span>
+									<span>{item.size}</span>
+									<span className={item.status === 'FILLED' ? 'text-[#00c076]' : 'text-slate-400'}>{item.status}</span>
+								</div>
+							))
+						)}
 					</div>
 				</div>
 			</div>
