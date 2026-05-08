@@ -1,12 +1,16 @@
-import { useUserOrders, useOpenOrders } from "@/hooks/useApi";
+import { useUserOrders, useOpenOrders, useMarkets } from "@/hooks/useApi";
 
 export const BottomSheet = () => {
 	const { data: userOrders = [] } = useUserOrders();
 	const { data: openOrdersData = [] } = useOpenOrders();
+	const { data: markets = [] } = useMarkets();
+
+	// Create a map for quick lookup: marketId -> symbol
+	const marketMap = new Map(markets.map(m => [m.id, m.symbol]));
 
 	const openOrders = openOrdersData.map(order => ({
 		time: new Date(order.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-		pair: order.symbol,
+		pair: marketMap.get(order.symbol) || order.symbol, // Use symbol if found, else fallback to the ID/stored symbol
 		side: order.side,
 		type: order.type,
 		price: order.price?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || 'MARKET',
@@ -23,13 +27,14 @@ export const BottomSheet = () => {
 
 	const formattedOrderHistory = userOrders.map(order => ({
 		time: new Date(order.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-		pair: order.symbol, // This is marketId, could be resolved to symbol if needed
+		pair: marketMap.get(order.symbol) || order.symbol,
 		side: order.side,
 		type: order.type,
 		price: order.price?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || 'MARKET',
 		size: order.size.toFixed(4),
 		status: order.status
 	}));
+
 
 	return (
 		<div className="p-4 grid h-full w-full overflow-hidden">
