@@ -1,14 +1,15 @@
-'use client';
+"use client";
 
-import { useWebSocket } from '@/hooks/useWebSocket';
+import { useWebSocket } from "@/hooks/useWebSocket";
 import {
   LeftPanel,
   ChartPanel,
   OrderBookPanel,
   RecentTradesPanel,
   TransactionPanel,
-} from './chartPanel';
-import { BottomSheet } from './bottomPanel';
+} from "./chartPanel";
+import { BottomSheet } from "./bottomPanel";
+import { OrderBook } from "./components/orderbook";
 
 export const TradingLayout = () => {
   // Initialize WebSocket connection
@@ -33,11 +34,11 @@ export const TradingLayout = () => {
           {/* OrderBook + Recent Trades (stacked) */}
           <div className="w-80 flex flex-col">
             <div className="flex-1 overflow-auto rounded-xl">
-              <OrderBookPanel />
+              <OrderBook />
             </div>
-            <div className="flex-1 overflow-auto border-t border-slate-700">
+            {/*<div className="flex-1 overflow-auto border-t border-slate-700">
               <RecentTradesPanel />
-            </div>
+            </div>*/}
           </div>
 
           {/* Transaction Form */}
