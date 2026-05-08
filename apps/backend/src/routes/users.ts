@@ -3,6 +3,56 @@ import { prisma } from "@repo/database";
 
 const router = Router();
 
+// POST /users/sync - Sync user from Privy
+router.post("/sync", async (req: Request, res: Response) => {
+  try {
+    const { email, name, walletAddress } = req.body as {
+      email?: string;
+      name?: string;
+      walletAddress?: string;
+    };
+
+    if (!email || !name || !walletAddress) {
+      return res.status(400).json({ error: "Missing required fields: email, name, walletAddress" });
+    }
+
+    // Upsert user by email
+    const user = await prisma.user.upsert({
+      where: { email },
+      update: { name },
+      create: { email, name },
+    });
+
+    // Check if wallet already exists
+    let wallet = await prisma.wallet.findUnique({
+      where: { address: walletAddress },
+    });
+
+    // If wallet doesn't exist, create it for this user
+    if (!wallet) {
+      wallet = await prisma.wallet.create({
+        data: {
+          address: walletAddress,
+          userId: user.id,
+        },
+      });
+    } else if (wallet.userId !== user.id) {
+      // If wallet exists but belongs to different user, don't update to prevent hijacking
+      return res.status(409).json({ error: "Wallet already linked to another user" });
+    }
+
+    res.json({
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      wallet: wallet.address,
+    });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 // GET /users/:userId/profile - Get user profile (name, email, wallets, balances)
 router.get("/:userId/profile", async (req: Request, res: Response) => {
   try {
