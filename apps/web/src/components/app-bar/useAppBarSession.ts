@@ -46,6 +46,11 @@ export function useAppBarSession() {
 
             try {
                 const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") + "/users/sync";
+                const payload = {
+                    email: userEmail,
+                    name: userName,
+                    walletAddress,
+                };
 
                 const res = await fetch(apiUrl, {
                     method: "POST",
@@ -59,8 +64,6 @@ export function useAppBarSession() {
                     lastSyncedKey.current = syncKey;
                     const data = await res.json();
                     setUserId(data.id);
-                } else {
-                    const error = await res.json();
                 }
             } catch (err) {
                 // Sync error silently
