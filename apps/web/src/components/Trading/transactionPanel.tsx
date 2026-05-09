@@ -13,7 +13,6 @@ import {
 } from "@/lib/solana";
 import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
 import { useSignAndSendTransaction } from "@privy-io/react-auth/solana";
-import { useState } from "react";
 import {
   getErrorMessage,
   signAndSendSolanaTransaction,
@@ -384,28 +383,12 @@ export const TransactionPanel = () => {
           <span>${(total * 0.0003).toFixed(2)} (0.03%)</span>
         </div>
 
-        {/* Error Message */}
-        {error && (
-          <div className="bg-red-500/20 border border-red-500 rounded p-2">
-            <p className="text-xs text-red-400">{error}</p>
-          </div>
-        )}
-
-        {/* Success Message */}
-        {successMessage && (
-          <div className="bg-green-500/20 border border-green-500 rounded p-2">
-            <p className="text-xs text-green-400">{successMessage}</p>
-          </div>
-        )}
-
         {/* Place Order Button */}
         <Button
           onClick={handlePlaceOrder}
           disabled={placeOrderMutation.isPending}
           className={`w-full py-3 rounded-lg font-semibold transition ${
-            loading
-              ? "bg-slate-600 text-slate-400 cursor-not-allowed"
-              : tradePanel.side === "BUY"
+            tradePanel.side === "BUY"
               ? "bg-green-600 hover:bg-green-700 text-white"
               : "bg-red-600 hover:bg-red-700 text-white"
           }`}
