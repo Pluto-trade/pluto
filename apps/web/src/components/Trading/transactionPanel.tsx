@@ -1,7 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { useTradingStore } from "@/store/tradingStore";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useMarkets } from "@/hooks/useApi";
+import { usePlaceOrder } from "@/hooks/usePlaceOrder";
 import { MarketComponent } from "./components/marketComponent";
 import { MarketStats } from "./components/marketStats";
 import { Button } from "../ui/button";
@@ -140,12 +143,59 @@ export const RecentTradesPanel = () => {
 };
 
 export const TransactionPanel = () => {
-  const { tradePanel, setOrderType, setTradeSide, setPrice, setSize, selectedSymbol } =
+  const { tradePanel, setOrderType, setTradeSide, setPrice, setSize, selectedSymbol, userId } =
     useTradingStore();
+  const { data: markets = [] } = useMarkets();
+  const { placeOrder, loading, error, success } = usePlaceOrder();
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const handlePlaceOrder = () => {
-    // TODO: Integrate with usePlaceOrder mutation
-    console.log("Place order:", tradePanel);
+  const handlePlaceOrder = async () => {
+    if (!userId) {
+      alert("User not authenticated. Please login first.");
+      return;
+    }
+
+    if (!tradePanel.price && tradePanel.orderType === "LIMIT") {
+      alert("Please enter a price for limit orders");
+      return;
+    }
+
+    if (!tradePanel.size) {
+      alert("Please enter a size");
+      return;
+    }
+
+    // Find the market ID for the selected symbol
+    const market = markets.find(m => m.symbol === selectedSymbol);
+    if (!market) {
+      alert(`Market ${selectedSymbol} not found`);
+      return;
+    }
+
+    // Only allow LIMIT orders as per requirements
+    if (tradePanel.orderType !== "LIMIT") {
+      alert("Only LIMIT orders are supported at this time");
+      return;
+    }
+
+    const order = await placeOrder({
+      userId,
+      marketId: market.id,
+      side: tradePanel.side as "BUY" | "SELL",
+      size: parseFloat(tradePanel.size),
+      price: parseFloat(tradePanel.price),
+      type: "LIMIT",
+    });
+
+    if (order) {
+      setSuccessMessage(`Order placed successfully! Order ID: ${order.id}`);
+      // Reset form after 2 seconds
+      setTimeout(() => {
+        setPrice("");
+        setSize("");
+        setSuccessMessage(null);
+      }, 2000);
+    }
   };
 
   // Parse symbol to get base and quote assets
@@ -239,16 +289,33 @@ export const TransactionPanel = () => {
           <span>${(total * 0.0003).toFixed(2)} (0.03%)</span>
         </div>
 
+        {/* Error Message */}
+        {error && (
+          <div className="bg-red-500/20 border border-red-500 rounded p-2">
+            <p className="text-xs text-red-400">{error}</p>
+          </div>
+        )}
+
+        {/* Success Message */}
+        {successMessage && (
+          <div className="bg-green-500/20 border border-green-500 rounded p-2">
+            <p className="text-xs text-green-400">{successMessage}</p>
+          </div>
+        )}
+
         {/* Place Order Button */}
         <Button
           onClick={handlePlaceOrder}
+          disabled={loading}
           className={`w-full py-3 rounded-lg font-semibold transition ${
-            tradePanel.side === "BUY"
+            loading
+              ? "bg-slate-600 text-slate-400 cursor-not-allowed"
+              : tradePanel.side === "BUY"
               ? "bg-green-600 hover:bg-green-700 text-white"
               : "bg-red-600 hover:bg-red-700 text-white"
           }`}
         >
-          {tradePanel.side} {tradePanel.size || "0"} {baseAsset}
+          {loading ? "Placing Order..." : `${tradePanel.side} ${tradePanel.size || "0"} ${baseAsset}`}
         </Button>
 
         {/* You Receive */}
