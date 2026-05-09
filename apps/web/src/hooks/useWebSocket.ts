@@ -22,10 +22,17 @@ export const useWebSocket = () => {
     setWsConnected,
   } = useTradingStore();
 
+  const FLUSH_INTERVAL_MS = 200;
+
   // Keep a stable ref to the latest marketId so the cleanup can unsubscribe
   // the correct market even if the effect re-runs before the socket closes.
   const marketIdRef = useRef(selectedMarketId);
   marketIdRef.current = selectedMarketId;
+
+  const orderBookBufferRef = useRef<OrderBook | null>(null);
+  const tradesBufferRef = useRef<any[]>([]);
+  const tickerBufferRef = useRef<any | null>(null);
+  const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     // Wait until useMarket has resolved the symbol → marketId
@@ -56,6 +63,38 @@ export const useWebSocket = () => {
       });
     };
 
+    const startFlushLoop = () => {
+      if (flushTimerRef.current) return;
+      flushTimerRef.current = setInterval(() => {
+        if (orderBookBufferRef.current) {
+          setOrderBook(orderBookBufferRef.current);
+          orderBookBufferRef.current = null;
+        }
+
+        if (tradesBufferRef.current.length > 0) {
+          const buffered = tradesBufferRef.current;
+          tradesBufferRef.current = [];
+          for (const trade of buffered) {
+            addRecentTrade(trade);
+          }
+        }
+
+        if (tickerBufferRef.current) {
+          setCurrentMarket(tickerBufferRef.current);
+          tickerBufferRef.current = null;
+        }
+      }, FLUSH_INTERVAL_MS);
+    };
+
+    const stopFlushLoop = () => {
+      if (flushTimerRef.current) {
+        clearInterval(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
+    };
+
+    startFlushLoop();
+
     ws.onmessage = (event) => {
       let message: any;
       try {
@@ -79,10 +118,10 @@ export const useWebSocket = () => {
           timestamp: data.timestamp,
         };
 
-        setOrderBook(orderBook);
+        orderBookBufferRef.current = orderBook;
       } else if (message.channel === "trades") {
         const trade = message.data;
-        addRecentTrade({
+        tradesBufferRef.current.push({
           id: `${trade.buyOrderId}-${trade.sellOrderId}-${trade.timestamp}`,
           symbol: selectedSymbol,
           price: trade.price,
@@ -91,7 +130,7 @@ export const useWebSocket = () => {
           timestamp: trade.timestamp,
         });
       } else if (message.channel === "ticker") {
-        setCurrentMarket({
+        tickerBufferRef.current = {
           symbol: selectedSymbol,
           name: selectedSymbol,
           lastPrice: message.data.lastPrice,
@@ -99,7 +138,7 @@ export const useWebSocket = () => {
           low24h: message.data.low24h,
           volume24h: message.data.volume24h,
           change24h: 0,
-        });
+        };
       }
     };
 
@@ -110,9 +149,11 @@ export const useWebSocket = () => {
     ws.onclose = () => {
       console.log("[WS] disconnected");
       setWsConnected(false);
+      stopFlushLoop();
     };
 
     return () => {
+      stopFlushLoop();
       // Unsubscribe cleanly before tearing down
       if (ws.readyState === WebSocket.OPEN) {
         ["orderbook", "trades", "ticker"].forEach((channel) => {
