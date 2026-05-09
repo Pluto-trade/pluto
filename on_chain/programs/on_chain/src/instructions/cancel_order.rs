@@ -2,11 +2,19 @@ use anchor_lang::prelude::*;
 
 use crate::errors::ExchangeError;
 use crate::states::{
-    CustodyVault, EscrowPosition, EscrowStatus, OrderState, OrderStatus, UserBalance, UserProfile,
+    CustodyVault, EscrowPosition, EscrowStatus, ExchangeConfig, OrderState, OrderStatus,
+    UserBalance, UserProfile,
 };
 
 #[derive(Accounts)]
 pub struct CancelOrder<'info> {
+    /// CHECK: Validated in the handler to reduce generated account-validation stack usage.
+    pub exchange: AccountInfo<'info>,
+
+    /// CHECK: Validated against exchange.authority and required to sign by the account constraint.
+    #[account(signer)]
+    pub authority: AccountInfo<'info>,
+
     #[account(
         seeds = [b"user", user.key().as_ref()],
         bump = user_profile.bump,
@@ -47,11 +55,22 @@ pub struct CancelOrder<'info> {
     )]
     pub custody_vault: Account<'info, CustodyVault>,
 
-    #[account(mut)]
-    pub user: Signer<'info>,
+    /// CHECK: Used only to derive and validate the cancelled order owner's PDAs.
+    pub user: AccountInfo<'info>,
 }
 
 pub fn handler(ctx: Context<CancelOrder>) -> Result<()> {
+    require!(
+        ctx.accounts.exchange.owner == &crate::ID,
+        ExchangeError::UnauthorizedCrank
+    );
+    let exchange_data = ctx.accounts.exchange.try_borrow_data()?;
+    let exchange = ExchangeConfig::try_deserialize(&mut exchange_data.as_ref())?;
+    require!(
+        exchange.authority == ctx.accounts.authority.key(),
+        ExchangeError::UnauthorizedCrank
+    );
+
     require!(
         matches!(
             ctx.accounts.order.status,

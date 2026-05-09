@@ -2,13 +2,24 @@
 
 import { useState } from "react";
 import { useTradingStore } from "@/store/tradingStore";
-import { useWebSocket } from "@/hooks/useWebSocket";
-import { useMarkets } from "@/hooks/useApi";
-import { usePlaceOrder } from "@/hooks/usePlaceOrder";
 import { MarketComponent } from "./components/marketComponent";
 import { MarketStats } from "./components/marketStats";
 import { Button } from "../ui/button";
 import { TradingChart } from "./components/charts/charts";
+import { useBalances, usePlaceOrder } from "@/hooks/useApi";
+import {
+  base64ToBytes,
+  getConfiguredMarketMints,
+} from "@/lib/solana";
+import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
+import { useSignAndSendTransaction } from "@privy-io/react-auth/solana";
+import { useState } from "react";
+import {
+  getErrorMessage,
+  signAndSendSolanaTransaction,
+} from "@/lib/solanaSigner";
+import { useEnsureOnchainUser } from "@/hooks/useEnsureOnchainUser";
+import { cancelOrder } from "@/lib/api/orders";
 
 // ============ PLACEHOLDER COMPONENTS ============
 
@@ -142,59 +153,143 @@ export const RecentTradesPanel = () => {
   );
 };
 
+function balanceAssetForSymbol(asset: string) {
+  return asset.toUpperCase() === "SOL" ? "wSOL" : asset;
+}
+
 export const TransactionPanel = () => {
-  const { tradePanel, setOrderType, setTradeSide, setPrice, setSize, selectedSymbol, userId } =
+  const {
+    tradePanel,
+    setOrderType,
+    setTradeSide,
+    setPrice,
+    setSize,
+    resetTradePanel,
+    selectedMarketId,
+    selectedSymbol,
+    userId,
+  } =
     useTradingStore();
-  const { data: markets = [] } = useMarkets();
-  const { placeOrder, loading, error, success } = usePlaceOrder();
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const placeOrderMutation = usePlaceOrder();
+  const { data: balances = [] } = useBalances();
+  const {
+    wallet: activeWallet,
+    signingAddress,
+  } = useActiveSolanaWallet();
+  const { signAndSendTransaction } = useSignAndSendTransaction();
+  const ensureOnchainUser = useEnsureOnchainUser();
+  const [txStatus, setTxStatus] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  const privySigningWallet =
+    activeWallet?.address.toLowerCase() === signingAddress?.toLowerCase()
+      ? activeWallet
+      : null;
+  const errorMessage = formError ?? placeOrderMutation.error?.message ?? null;
 
   const handlePlaceOrder = async () => {
+    setFormError(null);
+    setTxStatus(null);
+
+    const size = Number(tradePanel.size);
+    const price =
+      tradePanel.orderType === "LIMIT" ? Number(tradePanel.price) : undefined;
+
     if (!userId) {
-      alert("User not authenticated. Please login first.");
+      setFormError("Connect and sync your account before trading.");
       return;
     }
 
-    if (!tradePanel.price && tradePanel.orderType === "LIMIT") {
-      alert("Please enter a price for limit orders");
+    if (!selectedMarketId) {
+      setFormError("Select a market before placing an order.");
       return;
     }
 
-    if (!tradePanel.size) {
-      alert("Please enter a size");
+    if (!Number.isFinite(size) || size <= 0) {
+      setFormError("Enter a valid order size.");
       return;
     }
 
-    // Find the market ID for the selected symbol
-    const market = markets.find(m => m.symbol === selectedSymbol);
-    if (!market) {
-      alert(`Market ${selectedSymbol} not found`);
+    if (
+      tradePanel.orderType === "LIMIT" &&
+      (!Number.isFinite(price) || !price || price <= 0)
+    ) {
+      setFormError("Enter a valid limit price.");
       return;
     }
 
-    // Only allow LIMIT orders as per requirements
-    if (tradePanel.orderType !== "LIMIT") {
-      alert("Only LIMIT orders are supported at this time");
+    const marketMints = getConfiguredMarketMints();
+
+    if (!marketMints) {
+      setFormError(
+        "Missing NEXT_PUBLIC_BASE_MINT or NEXT_PUBLIC_QUOTE_MINT. Restart the frontend after adding them.",
+      );
       return;
     }
 
-    const order = await placeOrder({
-      userId,
-      marketId: market.id,
-      side: tradePanel.side as "BUY" | "SELL",
-      size: parseFloat(tradePanel.size),
-      price: parseFloat(tradePanel.price),
-      type: "LIMIT",
-    });
+    if (!signingAddress) {
+      setFormError("Connect a Solana wallet before placing an on-chain order.");
+      return;
+    }
 
-    if (order) {
-      setSuccessMessage(`Order placed successfully! Order ID: ${order.id}`);
-      // Reset form after 2 seconds
-      setTimeout(() => {
-        setPrice("");
-        setSize("");
-        setSuccessMessage(null);
-      }, 2000);
+    const [baseAssetForBalance, quoteAssetForBalance] = selectedSymbol.split("-");
+    const requiredAsset = balanceAssetForSymbol(
+      tradePanel.side === "BUY" ? quoteAssetForBalance : baseAssetForBalance,
+    );
+    const requiredAmount = tradePanel.side === "BUY" ? size * (price ?? 0) : size;
+    const availableBalance =
+      balances.find((balance) => balance.asset === requiredAsset)?.available ?? 0;
+
+    if (availableBalance < requiredAmount) {
+      setFormError(
+        `Deposit ${requiredAsset} first. Available: ${availableBalance}, required: ${requiredAmount}.`,
+      );
+      return;
+    }
+
+    try {
+      const synced = await ensureOnchainUser(signingAddress);
+      let acceptedOrderId: string | null = null;
+
+      const result = await placeOrderMutation.mutateAsync({
+        userId: synced.id,
+        marketId: selectedMarketId,
+        side: tradePanel.side,
+        type: tradePanel.orderType,
+        size,
+        price,
+        onchain: {
+          userPubkey: signingAddress,
+          ...marketMints,
+        },
+      });
+      acceptedOrderId = result.orderId;
+
+      if (result.onchain?.placeOrderTx) {
+        try {
+          const signature = await signAndSendSolanaTransaction({
+            transaction: base64ToBytes(result.onchain.placeOrderTx),
+            expectedAddress: signingAddress,
+            privyWallet: privySigningWallet,
+            privySignAndSendTransaction: signAndSendTransaction,
+          });
+
+          setTxStatus(`Order submitted: ${signature}`);
+        } catch (error) {
+          if (acceptedOrderId) {
+            await cancelOrder(acceptedOrderId).catch(() => undefined);
+          }
+          throw error;
+        }
+      } else if (result.onchain?.warnings?.length) {
+        setTxStatus(result.onchain.warnings[0]);
+      } else {
+        setTxStatus("Order accepted by the matching engine.");
+      }
+
+      resetTradePanel();
+    } catch (error) {
+      setFormError(getErrorMessage(error, "Order failed."));
     }
   };
 
@@ -306,7 +401,7 @@ export const TransactionPanel = () => {
         {/* Place Order Button */}
         <Button
           onClick={handlePlaceOrder}
-          disabled={loading}
+          disabled={placeOrderMutation.isPending}
           className={`w-full py-3 rounded-lg font-semibold transition ${
             loading
               ? "bg-slate-600 text-slate-400 cursor-not-allowed"
@@ -315,8 +410,22 @@ export const TransactionPanel = () => {
               : "bg-red-600 hover:bg-red-700 text-white"
           }`}
         >
-          {loading ? "Placing Order..." : `${tradePanel.side} ${tradePanel.size || "0"} ${baseAsset}`}
+          {placeOrderMutation.isPending
+            ? "Placing..."
+            : `${tradePanel.side} ${tradePanel.size || "0"} ${baseAsset}`}
         </Button>
+
+        {errorMessage && (
+          <p className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+            {errorMessage}
+          </p>
+        )}
+
+        {txStatus && (
+          <p className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200">
+            {txStatus}
+          </p>
+        )}
 
         {/* You Receive */}
         {/* <div className="flex items-center justify-between text-slate-400 text-sm">

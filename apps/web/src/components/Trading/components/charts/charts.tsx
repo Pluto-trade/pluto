@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { createChart, ColorType, CandlestickSeries, IChartApi, ISeriesApi } from 'lightweight-charts';
+import { createChart, ColorType, CandlestickSeries, IChartApi, ISeriesApi, type CandlestickData, type Time } from 'lightweight-charts';
 import { useTradingStore } from '@/store/tradingStore';
 
 export interface ChartProps {
@@ -128,13 +128,14 @@ export const TradingChart: React.FC<ChartProps> = ({
 			return;
 		}
 
-		if (lastCandle && (candleTimeSec as any) === lastCandle.time) {
+		if (lastCandle && "open" in lastCandle && (candleTimeSec as any) === lastCandle.time) {
+			const candle = lastCandle as CandlestickData<Time>;
 			// Update existing candle
 			seriesRef.current.update({
 				time: candleTimeSec as any,
-				open: lastCandle.open,
-				high: Math.max(lastCandle.high, lastTrade.price),
-				low: Math.min(lastCandle.low, lastTrade.price),
+				open: candle.open,
+				high: Math.max(candle.high, lastTrade.price),
+				low: Math.min(candle.low, lastTrade.price),
 				close: lastTrade.price,
 			});
 		} else {

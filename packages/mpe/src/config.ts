@@ -12,7 +12,7 @@ export const MPE_CONFIG = {
 
   // Delay rule
   /** Max order age in ms */
-  MAX_DELAY_MS: 5_000,
+  MAX_DELAY_MS: 10_000,
 
   // Volatility rule — adaptive thresholds
   /** Volatility level that triggers tighter thresholds */
@@ -20,7 +20,7 @@ export const MPE_CONFIG = {
   /** Tighter deviation threshold under high volatility */
   VOLATILE_MAX_DEVIATION: 0.01,
   /** Tighter delay threshold under high volatility (ms) */
-  VOLATILE_MAX_DELAY_MS: 2_500,
+  VOLATILE_MAX_DELAY_MS: 5_000,
 
   // Cancel Grace Window
   /**

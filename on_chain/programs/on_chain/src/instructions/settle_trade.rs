@@ -2,9 +2,12 @@ use anchor_lang::prelude::*;
 
 use crate::errors::ExchangeError;
 use crate::states::{
-    CustodyVault, EscrowPosition, EscrowStatus, OrderSide, OrderState, OrderStatus, OrderType,
-    SettlementStatus, TradeSettlement, UserBalance, UserProfile, SYMBOL_MAX_LEN, TRADE_ID_MAX_LEN,
+    CustodyVault, EscrowPosition, EscrowStatus, ExchangeConfig, OrderSide, OrderState,
+    OrderStatus, OrderType, SettlementStatus, TradeSettlement, UserBalance,
+    SYMBOL_MAX_LEN, TRADE_ID_MAX_LEN,
 };
+
+const BASE_UNIT_SCALE: u64 = 1_000_000_000;
 
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct SettleTradeArgs {
@@ -17,13 +20,12 @@ pub struct SettleTradeArgs {
 #[derive(Accounts)]
 #[instruction(args: SettleTradeArgs)]
 pub struct SettleTrade<'info> {
-    // Buyer's accounts
-    #[account(
-        seeds = [b"user", buyer.key().as_ref()],
-        bump = buyer_profile.bump,
-        constraint = buyer_profile.authority == buyer.key() @ ExchangeError::InvalidUser
-    )]
-    pub buyer_profile: Box<Account<'info, UserProfile>>,
+    /// CHECK: Validated in the handler to reduce generated account-validation stack usage.
+    pub exchange: AccountInfo<'info>,
+
+    /// CHECK: Validated against exchange.authority and pays for the settlement record.
+    #[account(mut, signer)]
+    pub authority: AccountInfo<'info>,
 
     #[account(
         mut,
@@ -60,14 +62,6 @@ pub struct SettleTrade<'info> {
         constraint = buyer_received_balance.token_mint == base_mint.key() @ ExchangeError::InvalidMint
     )]
     pub buyer_received_balance: Box<Account<'info, UserBalance>>,
-
-    // Seller's accounts
-    #[account(
-        seeds = [b"user", seller.key().as_ref()],
-        bump = seller_profile.bump,
-        constraint = seller_profile.authority == seller.key() @ ExchangeError::InvalidUser
-    )]
-    pub seller_profile: Box<Account<'info, UserProfile>>,
 
     /// CHECK: Used only to derive and validate seller-owned PDAs.
     pub seller: AccountInfo<'info>,
@@ -130,23 +124,31 @@ pub struct SettleTrade<'info> {
     // Trade settlement record
     #[account(
         init,
-        payer = payer,
+        payer = authority,
         space = TradeSettlement::SPACE,
         seeds = [b"settlement", args.trade_id.as_bytes()],
         bump
     )]
     pub trade_settlement: Box<Account<'info, TradeSettlement>>,
 
-    #[account(mut)]
-    pub buyer: Signer<'info>,
-
-    #[account(mut)]
-    pub payer: Signer<'info>,
+    /// CHECK: Used only to derive and validate buyer-owned PDAs.
+    pub buyer: AccountInfo<'info>,
 
     pub system_program: Program<'info, System>,
 }
 
 pub fn handler(ctx: Context<SettleTrade>, args: SettleTradeArgs) -> Result<()> {
+    require!(
+        ctx.accounts.exchange.owner == &crate::ID,
+        ExchangeError::UnauthorizedCrank
+    );
+    let exchange_data = ctx.accounts.exchange.try_borrow_data()?;
+    let exchange = ExchangeConfig::try_deserialize(&mut exchange_data.as_ref())?;
+    require!(
+        exchange.authority == ctx.accounts.authority.key(),
+        ExchangeError::UnauthorizedCrank
+    );
+
     // Validate inputs
     require!(args.quantity > 0, ExchangeError::InvalidAmount);
     require!(args.price > 0, ExchangeError::InvalidAmount);
@@ -214,10 +216,13 @@ pub fn handler(ctx: Context<SettleTrade>, args: SettleTradeArgs) -> Result<()> {
     let now = Clock::get()?.unix_timestamp;
 
     // Calculate amounts
-    let quote_amount = args
-        .price
-        .checked_mul(args.quantity)
-        .ok_or(ExchangeError::MathOverflow)?;
+    let quote_amount: u64 = ((args.price as u128)
+        .checked_mul(args.quantity as u128)
+        .ok_or(ExchangeError::MathOverflow)?
+        .checked_div(BASE_UNIT_SCALE as u128)
+        .ok_or(ExchangeError::MathOverflow)?)
+        .try_into()
+        .map_err(|_| ExchangeError::MathOverflow)?;
 
     // The order placed first (lower sequence_id) is the maker; the aggressor is the taker.
     let buyer_is_maker = ctx.accounts.buyer_order.sequence_id
@@ -392,7 +397,7 @@ pub fn handler(ctx: Context<SettleTrade>, args: SettleTradeArgs) -> Result<()> {
         ctx.accounts.buyer_order.order_id.clone()
     };
     trade_settlement.buyer = ctx.accounts.buyer.key();
-    trade_settlement.seller = ctx.accounts.seller_profile.authority;
+    trade_settlement.seller = ctx.accounts.seller.key();
     trade_settlement.base_mint = ctx.accounts.base_mint.key();
     trade_settlement.quote_mint = ctx.accounts.quote_mint.key();
     trade_settlement.price = args.price;

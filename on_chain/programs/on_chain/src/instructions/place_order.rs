@@ -6,6 +6,8 @@ use crate::states::{
     OrderType, UserBalance, UserProfile, ORDER_ID_MAX_LEN, SYMBOL_MAX_LEN,
 };
 
+const BASE_UNIT_SCALE: u64 = 1_000_000_000;
+
 #[derive(AnchorSerialize, AnchorDeserialize, Clone, Debug)]
 pub struct PlaceOrderArgs {
     pub order_id: String,
@@ -90,10 +92,13 @@ pub fn handler(ctx: Context<PlaceOrder>, args: PlaceOrderArgs) -> Result<()> {
     );
 
     let locked_amount = match args.side {
-        OrderSide::Buy => args
-            .price
-            .checked_mul(args.quantity)
-            .ok_or(ExchangeError::MathOverflow)?,
+        OrderSide::Buy => ((args.price as u128)
+            .checked_mul(args.quantity as u128)
+            .ok_or(ExchangeError::MathOverflow)?
+            .checked_div(BASE_UNIT_SCALE as u128)
+            .ok_or(ExchangeError::MathOverflow)?)
+            .try_into()
+            .map_err(|_| ExchangeError::MathOverflow)?,
         OrderSide::Sell => args.quantity,
     };
 

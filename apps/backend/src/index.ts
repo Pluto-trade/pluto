@@ -8,6 +8,7 @@ import orderbookRouter from './routes/orderbook';
 import balancesRouter from './routes/balances';
 import mpeLogsRouter from './routes/mpeLogs'
 import usersRouter from './routes/users';
+import onchainRouter from './routes/onchain';
 import { createWsServer } from './ws';
 import { redisInit } from './lib/redis';
 import { startPriceStream, getCachedPrice, FEED_IDS } from '@repo/oracle';
@@ -35,6 +36,7 @@ app.use('/orderbook', orderbookRouter);
 app.use('/balances', balancesRouter);
 app.use('/mpe-logs', mpeLogsRouter);
 app.use('/users', usersRouter);
+app.use('/onchain', onchainRouter);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

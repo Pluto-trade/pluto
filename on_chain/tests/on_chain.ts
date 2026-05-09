@@ -235,6 +235,8 @@ describe("on_chain", () => {
     await program.methods
       .cancelOrder()
       .accounts({
+        exchange: exchange(),
+        authority: payer.publicKey,
         userProfile: userProfile(user.publicKey),
         order: orderPda(user.publicKey, orderId),
         escrow: escrowPda(user.publicKey, orderId),
@@ -242,7 +244,6 @@ describe("on_chain", () => {
         custodyVault: custodyVault(mint),
         user: user.publicKey,
       })
-      .signers([user])
       .rpc();
 
     balance = await program.account.userBalance.fetch(
@@ -373,7 +374,6 @@ describe("on_chain", () => {
         user: buyer.publicKey,
         systemProgram: SYSTEM_PROGRAM_ID,
       })
-      .signers([buyer])
       .rpc();
 
     await program.methods
@@ -407,12 +407,12 @@ describe("on_chain", () => {
         quantity: new anchor.BN(20),
       })
       .accounts({
-        buyerProfile: userProfile(buyer.publicKey),
+        exchange: exchange(),
+        authority: payer.publicKey,
         buyerOrder: orderPda(buyer.publicKey, buyOrderId),
         buyerEscrow: escrowPda(buyer.publicKey, buyOrderId),
         buyerBalance: userBalance(buyer.publicKey, quote.mint),
         buyerReceivedBalance: userBalance(buyer.publicKey, base.mint),
-        sellerProfile: userProfile(seller.publicKey),
         seller: seller.publicKey,
         sellerOrder: orderPda(seller.publicKey, sellOrderId),
         sellerEscrow: escrowPda(seller.publicKey, sellOrderId),
@@ -424,10 +424,8 @@ describe("on_chain", () => {
         quoteCustody: custodyVault(quote.mint),
         tradeSettlement: settlementPda("trade-1"),
         buyer: buyer.publicKey,
-        payer: payer.publicKey,
         systemProgram: SYSTEM_PROGRAM_ID,
       })
-      .signers([buyer])
       .rpc();
 
     const buyerQuoteBalance = await program.account.userBalance.fetch(
@@ -535,7 +533,6 @@ describe("on_chain", () => {
           user: buyer.publicKey,
           systemProgram: SYSTEM_PROGRAM_ID,
         })
-        .signers([buyer])
         .rpc();
 
     const placeSellOrder = () =>
@@ -587,12 +584,12 @@ describe("on_chain", () => {
         quantity: new anchor.BN(opts.quantity),
       })
       .accounts({
-        buyerProfile: userProfile(buyer.publicKey),
+        exchange: exchange(),
+        authority: payer.publicKey,
         buyerOrder: orderPda(buyer.publicKey, opts.buyOrderId),
         buyerEscrow: escrowPda(buyer.publicKey, opts.buyOrderId),
         buyerBalance: userBalance(buyer.publicKey, quoteMint),   // buyer releases locked quote
         buyerReceivedBalance: userBalance(buyer.publicKey, baseMint),   // buyer receives base
-        sellerProfile: userProfile(seller.publicKey),
         seller: seller.publicKey,
         sellerOrder: orderPda(seller.publicKey, opts.sellOrderId),
         sellerEscrow: escrowPda(seller.publicKey, opts.sellOrderId),
@@ -604,10 +601,8 @@ describe("on_chain", () => {
         quoteCustody: custodyVault(quoteMint),
         tradeSettlement: settlementPda(opts.tradeId),
         buyer: buyer.publicKey,
-        payer: payer.publicKey,
         systemProgram: SYSTEM_PROGRAM_ID,
       })
-      .signers([buyer])
       .rpc();
 
     return {
@@ -881,7 +876,6 @@ describe("on_chain", () => {
         user: buyer.publicKey,
         systemProgram: SYSTEM_PROGRAM_ID,
       })
-      .signers([buyer])
       .rpc();
 
     await program.methods
@@ -916,12 +910,12 @@ describe("on_chain", () => {
         quantity: new anchor.BN(PARTIAL_QTY),
       })
       .accounts({
-        buyerProfile: userProfile(buyer.publicKey),
+        exchange: exchange(),
+        authority: payer.publicKey,
         buyerOrder: orderPda(buyer.publicKey, buyOrderId),
         buyerEscrow: escrowPda(buyer.publicKey, buyOrderId),
         buyerBalance: userBalance(buyer.publicKey, quoteMint),
         buyerReceivedBalance: userBalance(buyer.publicKey, baseMint),
-        sellerProfile: userProfile(seller.publicKey),
         seller: seller.publicKey,
         sellerOrder: orderPda(seller.publicKey, sellOrderId),
         sellerEscrow: escrowPda(seller.publicKey, sellOrderId),
@@ -933,10 +927,8 @@ describe("on_chain", () => {
         quoteCustody: custodyVault(quoteMint),
         tradeSettlement: settlementPda("partial-trade"),
         buyer: buyer.publicKey,
-        payer: payer.publicKey,
         systemProgram: SYSTEM_PROGRAM_ID,
       })
-      .signers([buyer])
       .rpc();
 
     // Buyer received partial base (net of fee)

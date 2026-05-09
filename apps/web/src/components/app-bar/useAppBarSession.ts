@@ -3,35 +3,54 @@
 import { useEffect, useRef, useState } from "react";
 import { useLoginWithOAuth, usePrivy } from "@privy-io/react-auth";
 import { useTradingStore } from "@/store/tradingStore";
+import { syncUserForWallet } from "@/lib/api/userSync";
+import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
 
 export function useAppBarSession() {
     const { ready, authenticated, logout: privyLogout, user, linkWallet } = usePrivy();
     const { initOAuth, loading } = useLoginWithOAuth();
+    const { phantomAddress } = useActiveSolanaWallet();
     const { setUserId } = useTradingStore();
     const lastSyncedKey = useRef<string | null>(null);
+    const inFlightSyncKey = useRef<string | null>(null);
     const [oauthError, setOauthError] = useState<string | null>(null);
+    const [syncError, setSyncError] = useState<string | null>(null);
+    const [syncStatus, setSyncStatus] = useState<string | null>(null);
 
     const logout = async () => {
         await privyLogout();
         setUserId(null);
         lastSyncedKey.current = null;
+        inFlightSyncKey.current = null;
+        setSyncError(null);
+        setSyncStatus(null);
     };
 
     const googleAccount = user?.linkedAccounts?.find(
         (account) => account.type === "google_oauth"
     );
     const walletAccounts = user?.linkedAccounts?.filter((account) => account.type === "wallet");
-
-    const userEmail = googleAccount && "email" in googleAccount ? googleAccount.email : undefined;
-    const userName = googleAccount && "name" in googleAccount ? googleAccount.name : undefined;
     const walletAddress =
-        walletAccounts && walletAccounts.length > 0
+        phantomAddress ??
+        (walletAccounts && walletAccounts.length > 0
             ? walletAccounts[walletAccounts.length - 1].address
-            : undefined;
+            : undefined);
+
+    const userEmail =
+        googleAccount && "email" in googleAccount
+            ? googleAccount.email
+            : walletAddress
+                ? `${walletAddress.toLowerCase()}@wallet.plut0x.local`
+                : undefined;
+    const userName =
+        googleAccount && "name" in googleAccount
+            ? googleAccount.name
+            : walletAddress
+                ? `Wallet ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`
+                : undefined;
 
     const hasLinkedWallet =
         user?.linkedAccounts?.some((account) => account.type === "wallet") ?? false;
-
     useEffect(() => {
         const syncUser = async () => {
 
@@ -39,39 +58,36 @@ export function useAppBarSession() {
                 return;
             }
 
-            const syncKey = `${userEmail}:${walletAddress}`;
-            if (lastSyncedKey.current === syncKey) {
+            const syncKey = `${userEmail}:${walletAddress}:backend`;
+            if (lastSyncedKey.current === syncKey || inFlightSyncKey.current === syncKey) {
                 return;
             }
 
             try {
-                const apiUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001") + "/users/sync";
-                const payload = {
-                    email: userEmail,
-                    name: userName,
-                    walletAddress,
-                };
+                inFlightSyncKey.current = syncKey;
+                setSyncError(null);
+                setSyncStatus("Syncing account...");
 
-                const res = await fetch(apiUrl, {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                    body: JSON.stringify(payload),
+                const data = await syncUserForWallet({
+                    walletAddress,
+                    includeOnchain: false,
                 });
 
-                if (res.ok) {
-                    lastSyncedKey.current = syncKey;
-                    const data = await res.json();
-                    setUserId(data.id);
-                }
+                setUserId(data.id);
+                lastSyncedKey.current = syncKey;
+                setSyncStatus("Backend account synced.");
             } catch (err) {
-                // Sync error silently
+                setSyncError(err instanceof Error ? err.message : "Account sync failed.");
+                setSyncStatus(null);
+            } finally {
+                if (inFlightSyncKey.current === syncKey) {
+                    inFlightSyncKey.current = null;
+                }
             }
         };
 
         void syncUser();
-    }, [authenticated, userEmail, userName, walletAddress, googleAccount, walletAccounts, setUserId]);
+    }, [authenticated, userEmail, userName, walletAddress, setUserId]);
 
     const handleGoogleLogin = async () => {
         setOauthError(null);
@@ -103,5 +119,7 @@ export function useAppBarSession() {
         logout,
         oauthError,
         ready,
+        syncError,
+        syncStatus,
     };
 }

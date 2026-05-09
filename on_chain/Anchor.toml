@@ -5,17 +5,17 @@ package_manager = "pnpm"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-on_chain = "6niVdPDPsNw2kCQ1XrupgnupLBPgcq6S68TwkEobCVGr"
-
 [programs.devnet]
+on_chain = "Paa6shBbKzD3BW3TMzUShJRVcriAANrb5PFpXYpuQKZ"
+
+[programs.localnet]
 on_chain = "6niVdPDPsNw2kCQ1XrupgnupLBPgcq6S68TwkEobCVGr"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Devnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

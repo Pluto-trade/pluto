@@ -1,32 +1,47 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "@repo/database";
+import { PublicKey } from "@solana/web3.js";
+import {
+  buildTransaction,
+  getConnection,
+  getProgram,
+  onchainPdas,
+  serializeTx,
+  SYSTEM_PROGRAM_ID,
+} from "../services/onchain";
 
 const router = Router();
 
 // POST /users/sync - Sync user from Privy
 router.post("/sync", async (req: Request, res: Response) => {
   try {
-    const { email, name, walletAddress } = req.body as {
+    const { email, name, walletAddress, includeOnchain } = req.body as {
       email?: string;
       name?: string;
       walletAddress?: string;
+      includeOnchain?: boolean;
     };
 
-    if (!email || !name || !walletAddress) {
-      return res.status(400).json({ error: "Missing required fields: email, name, walletAddress" });
+    if (!walletAddress) {
+      return res.status(400).json({ error: "Missing required field: walletAddress" });
     }
 
-    // Upsert user by email
-    const user = await prisma.user.upsert({
-      where: { email },
-      update: { name },
-      create: { email, name },
-    });
+    const normalizedEmail = email ?? `${walletAddress.toLowerCase()}@wallet.plut0x.local`;
+    const normalizedName = name ?? `Wallet ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`;
 
     // Check if wallet already exists
     let wallet = await prisma.wallet.findUnique({
       where: { address: walletAddress },
+      include: { user: true },
     });
+
+    const user = wallet
+      ? wallet.user
+      : await prisma.user.upsert({
+          where: { email: normalizedEmail },
+          update: { name: normalizedName },
+          create: { email: normalizedEmail, name: normalizedName },
+        });
 
     // If wallet doesn't exist, create it for this user
     if (!wallet) {
@@ -35,10 +50,60 @@ router.post("/sync", async (req: Request, res: Response) => {
           address: walletAddress,
           userId: user.id,
         },
+        include: { user: true },
       });
     } else if (wallet.userId !== user.id) {
       // If wallet exists but belongs to different user, don't update to prevent hijacking
       return res.status(409).json({ error: "Wallet already linked to another user" });
+    }
+
+    let onchain:
+      | {
+          createUserTx: string | null;
+          userProfile: string;
+          alreadyInitialized: boolean;
+          skippedReason?: string;
+        }
+      | undefined;
+
+    if (includeOnchain) {
+      try {
+        const userPubkey = new PublicKey(walletAddress);
+        const userProfile = onchainPdas.userProfile(userPubkey);
+        const existingProfile = await getConnection().getAccountInfo(userProfile);
+
+        if (existingProfile) {
+          onchain = {
+            createUserTx: null,
+            userProfile: userProfile.toBase58(),
+            alreadyInitialized: true,
+          };
+        } else {
+          const program = getProgram() as any;
+          const ix = await program.methods
+            .createUser()
+            .accounts({
+              userProfile,
+              user: userPubkey,
+              systemProgram: SYSTEM_PROGRAM_ID,
+            })
+            .instruction();
+          const tx = await buildTransaction(ix, userPubkey);
+
+          onchain = {
+            createUserTx: serializeTx(tx),
+            userProfile: userProfile.toBase58(),
+            alreadyInitialized: false,
+          };
+        }
+      } catch (error: any) {
+        onchain = {
+          createUserTx: null,
+          userProfile: "",
+          alreadyInitialized: false,
+          skippedReason: error.message,
+        };
+      }
     }
 
     res.json({
@@ -46,6 +111,7 @@ router.post("/sync", async (req: Request, res: Response) => {
       email: user.email,
       name: user.name,
       wallet: wallet.address,
+      onchain,
     });
   } catch (error: any) {
     res.status(500).json({ error: error.message });

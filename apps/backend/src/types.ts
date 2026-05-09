@@ -15,6 +15,11 @@ export interface PlaceOrderRequest {
   type: OrderType;
   timeInForce?: 'GTC' | 'FOK' | 'IOC';
   postOnly?: boolean;
+  onchain?: {
+    userPubkey?: string;
+    baseMint?: string;
+    quoteMint?: string;
+  };
 }
 
 export interface CreateMarketRequest {

@@ -5,11 +5,11 @@ import type {
   OrderBookSnapshot,
   RestingOrder,
 } from "./types";
-import type { IndexedOrder } from "./internalTypes.ts";
-import { executeMatching } from "./matchingLoop.ts";
+import type { IndexedOrder } from "./internalTypes";
+import { executeMatching } from "./matchingLoop";
 import type { OrderBookPort } from "./orderBookPort.ts";
-import { normalizeSymbol, preprocessOrder } from "./preprocess.ts";
-import { buildAcceptedResult, buildRejectedResult } from "./results.ts";
+import { normalizeSymbol, preprocessOrder } from "./preprocess";
+import { buildAcceptedResult, buildRejectedResult } from "./results";
 import { evaluateWithContext } from "@repo/mpe";
 import type { Market } from "@repo/mpe";
 

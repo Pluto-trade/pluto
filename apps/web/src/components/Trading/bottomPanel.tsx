@@ -1,11 +1,14 @@
-import { useUserOrders, useOpenOrders, useMarkets } from "@/hooks/useApi";
-import { useOrdersChannel } from "@/hooks/useOrdersChannel";
+import { useUserOrders, useOpenOrders, useMarkets, useCancelOrder } from "@/hooks/useApi";
+import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
+import { getConfiguredMarketMints } from "@/lib/solana";
+import { FundsPanel } from "./fundsPanel";
 
 export const BottomSheet = () => {
 	const { data: userOrders = [] } = useUserOrders();
 	const { data: openOrdersData = [] } = useOpenOrders();
 	const { data: markets = [] } = useMarkets();
-	const { activeOrders } = useOrdersChannel();
+	const cancelOrderMutation = useCancelOrder();
+	const { wallet: activeWallet } = useActiveSolanaWallet();
 
 	// Create a map for quick lookup: marketId -> symbol
 	const marketMap = new Map(markets.map(m => [m.id, m.symbol]));
@@ -23,16 +26,6 @@ export const BottomSheet = () => {
 		id: order.id
 	}));
 
-	const positions = activeOrders.map(order => ({
-		orderId: order.orderId,
-		pair: order.marketDisplay || order.marketSymbol || 'Unknown',
-		side: order.side,
-		size: order.size.toFixed(4),
-		entry: order.entryPrice ? order.entryPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 }) : '-',
-		pnl: order.pnl ? `${order.pnl >= 0 ? '+' : ''}${order.pnl.toFixed(2)}` : '-',
-		markPrice: order.markPrice ? order.markPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 8 }) : '-',
-	}));
-
 	const formattedOrderHistory = userOrders.map(order => ({
 		time: new Date(order.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
 		pair: marketMap.get(order.symbol) || order.symbol,
@@ -43,10 +36,21 @@ export const BottomSheet = () => {
 		status: order.status
 	}));
 
+	const handleCancelOrder = async (orderId: string) => {
+		const marketMints = getConfiguredMarketMints();
+
+		await cancelOrderMutation.mutateAsync({
+			orderId,
+			userPubkey: activeWallet?.address,
+			baseMint: marketMints?.baseMint,
+			quoteMint: marketMints?.quoteMint,
+		});
+	};
+
 
 	return (
 		<div className="p-4 grid h-full w-full overflow-hidden">
-			<div className="grid grid-cols-[1.3fr_0.85fr_1.15fr] gap-4 h-full">
+			<div className="grid grid-cols-[1.25fr_0.9fr_1.15fr] gap-4 h-full">
 				{/* Open Orders */}
 				<div className=" p-4 bg-[#081126]/90 border border-[#1e222d] shadow-lg rounded-xl flex flex-col min-w-0 backdrop-blur-xl">
 					<h4 className="text-[14px] font-semibold text-white mb-3">Open Orders ({openOrders.length})</h4>
@@ -79,45 +83,24 @@ export const BottomSheet = () => {
 									<span>{item.size}</span>
 									<span>{item.filled}</span>
 									<span className="text-white">{item.total}</span>
-									<button className="hover:text-white transition text-left">{item.action}</button>
+									<button
+										type="button"
+										disabled={cancelOrderMutation.isPending}
+										onClick={() => handleCancelOrder(item.id)}
+										className="min-h-10 text-left text-slate-400 transition hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 disabled:cursor-not-allowed disabled:opacity-50"
+									>
+										{cancelOrderMutation.isPending ? '...' : item.action}
+									</button>
 								</div>
 							))
 						)}
 					</div>
+					{cancelOrderMutation.error ? (
+						<p className="mt-2 text-[11px] text-red-300">{cancelOrderMutation.error.message}</p>
+					) : null}
 				</div>
 
-				{/* Positions */}
-				<div className="flex-1 p-4 bg-[#081126]/90 border border-[#1e222d] shadow-lg rounded-xl flex flex-col min-w-0 backdrop-blur-xl">
-					<h4 className="text-[14px] font-semibold text-white mb-3">Positions ({positions.length})</h4>
-					
-					<div className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr] items-center text-[11px] text-[#8e98a8] font-medium pb-2 border-b border-[#2a2e39]/50 mb-1 shrink-0">
-						<span>Market</span>
-						<span>Side</span>
-						<span>Size</span>
-						<span>Entry</span>
-						<span>PnL</span>
-						<span>Mark Price</span>
-					</div>
-					
-					<div className="flex-1 overflow-y-auto max-h-18.5 pr-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-slate-700 [&::-webkit-scrollbar-thumb]:rounded-full">
-						{positions.length === 0 ? (
-							<div className="flex items-center justify-center h-full py-4 text-[11px] text-slate-500">
-								No open positions.
-							</div>
-						) : (
-							positions.map((item, i) => (
-								<div key={item.orderId || i} className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr] items-center text-[11px] text-slate-300 py-2.5 border-b border-[#2a2e39]/30 last:border-0 hover:bg-[#1e222d]/50 transition">
-									<span className="text-white">{item.pair}</span>
-									<span className={item.side === 'BUY' ? 'text-[#00c076]' : item.side === 'SELL' ? 'text-[#ff3b30]' : 'text-slate-300'}>{item.side}</span>
-									<span className="text-white">{item.size}</span>
-									<span className="text-white">{item.entry}</span>
-									<span className={item.pnl !== '-' && item.pnl.startsWith('+') ? 'text-[#00c076]' : item.pnl !== '-' ? 'text-[#ff3b30]' : 'text-slate-300'}>{item.pnl}</span>
-									<span className="text-white">{item.markPrice}</span>
-								</div>
-							))
-						)}
-					</div>
-				</div>
+				<FundsPanel />
 
 				{/* Order History */}
 				<div className="flex-1 p-4 bg-[#081126]/90 border border-[#1e222d] shadow-lg rounded-xl flex flex-col min-w-0 backdrop-blur-xl">

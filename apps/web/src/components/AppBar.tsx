@@ -14,6 +14,8 @@ export function AppBar() {
         logout,
         oauthError,
         ready,
+        syncError,
+        syncStatus,
     } = useAppBarSession();
 
     return (
@@ -28,6 +30,8 @@ export function AppBar() {
                 onLogout={logout}
                 oauthError={oauthError}
                 ready={ready}
+                syncError={syncError}
+                syncStatus={syncStatus}
             />
         </nav>
     );

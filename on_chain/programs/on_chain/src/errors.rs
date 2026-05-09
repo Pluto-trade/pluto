@@ -26,4 +26,6 @@ pub enum ExchangeError {
     InvalidEscrowStatus,
     #[msg("The settlement cannot be updated from its current state.")]
     InvalidSettlementStatus,
+    #[msg("The signer is not authorized to perform this exchange action.")]
+    UnauthorizedCrank,
 }

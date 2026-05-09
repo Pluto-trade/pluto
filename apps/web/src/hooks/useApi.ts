@@ -1,9 +1,16 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import type { Market, Order, UserBalance, Position } from '@/types/trading';
+import type { ApiMarket, Order, Position } from '@/types/trading';
 import { useTradingStore } from '@/store/tradingStore';
 import { getUserOrders, getUserOpenOrders } from '@/lib/api/users';
+import { getUserBalances } from '@/lib/api/balances';
+import {
+  cancelOrder,
+  placeOrder,
+  type PlaceOrderPayload,
+  type PlaceOrderResponse,
+} from '@/lib/api/orders';
 
-const API_BASE = 'http://localhost:3001';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 
 // ============ QUERIES ============
 
@@ -34,23 +41,19 @@ export const useMarkets = () => {
     queryKey: ['markets'],
     queryFn: async () => {
       const res = await fetch(`${API_BASE}/markets`);
-      return res.json() as Promise<Market[]>;
+      return res.json() as Promise<ApiMarket[]>;
     },
     staleTime: 5 * 1000, // 5 seconds
   });
 };
 
 export const useBalances = () => {
+  const { userId } = useTradingStore();
+
   return useQuery({
-    queryKey: ['balances'],
-    queryFn: async () => {
-      const res = await fetch(`${API_BASE}/balances`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-        },
-      });
-      return res.json() as Promise<UserBalance[]>;
-    },
+    queryKey: ['balances', userId],
+    queryFn: () => (userId ? getUserBalances(userId) : Promise.resolve([])),
+    enabled: !!userId,
     staleTime: 3 * 1000, // 3 seconds
   });
 };
@@ -94,32 +97,13 @@ export const usePlaceOrder = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (orderData: {
-      symbol: string;
-      side: 'BUY' | 'SELL';
-      type: 'LIMIT' | 'MARKET';
-      price?: number;
-      size: number;
-    }) => {
-      const res = await fetch(`${API_BASE}/orders`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-        },
-        body: JSON.stringify(orderData),
-      });
-
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message);
-      }
-
-      return res.json() as Promise<Order>;
-    },
+    mutationFn: (orderData: PlaceOrderPayload): Promise<PlaceOrderResponse> =>
+      placeOrder(orderData),
     onSuccess: () => {
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['open-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['user-orders'] });
       queryClient.invalidateQueries({ queryKey: ['balances'] });
       queryClient.invalidateQueries({ queryKey: ['positions'] });
     },
@@ -130,19 +114,13 @@ export const useCancelOrder = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (orderId: string) => {
-      const res = await fetch(`${API_BASE}/orders/${orderId}`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('authToken')}`,
-        },
-      });
-
-      if (!res.ok) throw new Error('Failed to cancel order');
-      return res.json();
-    },
+    mutationFn: (input: string | { orderId: string; baseMint?: string; quoteMint?: string; userPubkey?: string }) =>
+      typeof input === 'string' ? cancelOrder(input) : cancelOrder(input.orderId, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['open-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['user-orders'] });
+      queryClient.invalidateQueries({ queryKey: ['balances'] });
     },
   });
 };

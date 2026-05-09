@@ -9,6 +9,8 @@ interface AppBarActionsProps {
     onLogout: () => void;
     oauthError: string | null;
     ready: boolean;
+    syncError: string | null;
+    syncStatus: string | null;
 }
 
 export function AppBarActions({
@@ -20,6 +22,8 @@ export function AppBarActions({
     onLogout,
     oauthError,
     ready,
+    syncError,
+    syncStatus,
 }: AppBarActionsProps) {
     return (
         <div style={{ display: "flex", gap: "0.75rem", alignItems: "center" }}>
@@ -54,6 +58,29 @@ export function AppBarActions({
                     <AppBarButton onClick={onLogout} variant="secondary">
                         Log out
                     </AppBarButton>
+
+                    {syncError ? (
+                        <span
+                            style={{
+                                color: "#fca5a5",
+                                fontSize: "0.85rem",
+                                fontWeight: 500,
+                                maxWidth: "24rem",
+                            }}
+                        >
+                            {syncError}
+                        </span>
+                    ) : syncStatus ? (
+                        <span
+                            style={{
+                                color: "#93c5fd",
+                                fontSize: "0.85rem",
+                                fontWeight: 500,
+                            }}
+                        >
+                            {syncStatus}
+                        </span>
+                    ) : null}
                 </>
             )}
         </div>
