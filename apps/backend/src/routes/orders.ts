@@ -4,13 +4,23 @@ import crypto from "crypto";
 import { v4 as uuidv4 } from "uuid";
 import { orderService } from "../services/order";
 import { PlaceOrderRequest } from "../types";
-import { deleteOrder, setOrder, updateOrderSize } from "../lib/redis/order";
+import {
+  deleteOrder,
+  setOrder,
+  updateOrderSize,
+} from "../lib/redis/order";
 import { addTrade } from "../lib/redis/trades";
 import { addOrderEvent } from "../lib/redis/orderEvents";
 import { matchingEngineService } from "../services/matchingEngine";
+import { balanceService } from "../services/balance";
 import { prisma, ProtectionReason } from "@repo/database";
 import { marketService } from "../services/market";
 import { PublicKey } from "@solana/web3.js";
+import {
+  assertWalletLinkedToAuthUser,
+  requireSameUser,
+  requireUserSession,
+} from "../middleware/auth";
 import {
   buildTransaction,
   getAuthorityKeypair,
@@ -60,8 +70,41 @@ async function resolveUserPubkey(
   return new PublicKey(wallet.address);
 }
 
+async function resolveOrderPubkey(
+  order: { id?: string; userId: string; walletAddress?: string | null },
+  explicit?: string | null,
+): Promise<PublicKey | null> {
+  const walletAddress =
+    explicit ??
+    order.walletAddress ??
+    (order.id ? await orderService.getOrderWalletAddress(order.id) : null);
+
+  return resolveUserPubkey(order.userId, walletAddress);
+}
+
 function resolveTokenMint(side: string, baseMint: PublicKey, quoteMint: PublicKey) {
   return side.toUpperCase() === "BUY" ? quoteMint : baseMint;
+}
+
+function balanceAssetForSymbol(asset: string) {
+  return asset.toUpperCase() === "SOL" ? "wSOL" : asset;
+}
+
+function lockedAssetForSide(side: string, market: { baseAsset: string; quoteAsset: string }) {
+  return balanceAssetForSymbol(
+    side.toUpperCase() === "BUY" ? market.quoteAsset : market.baseAsset,
+  );
+}
+
+function lockedAmountForOrder(side: string, quantity: number, price?: number | null) {
+  if (side.toUpperCase() === "BUY") {
+    if (price == null) {
+      throw new Error("Cannot reserve quote balance for a buy order without a price.");
+    }
+    return quantity * price;
+  }
+
+  return quantity;
 }
 
 async function assertOnchainOrderExists(
@@ -80,6 +123,110 @@ async function assertOnchainOrderExists(
   }
 }
 
+async function onchainOrderExists(owner: PublicKey, orderId: string) {
+  const account = onchainPdas.order(owner, onchainId(orderId));
+  const exists = await getProgram().provider.connection.getAccountInfo(account);
+  return !!exists;
+}
+
+async function removeOffchainRestingOrder(orderId: string) {
+  const order = await orderService.getOrder(orderId);
+  matchingEngineService.cancelOrder(orderId);
+  await deleteOrder(orderId).catch(() => undefined);
+
+  if (order) {
+    const market = await marketService.getMarket(order.marketId);
+    if (market) {
+      await balanceService.release(
+        order.userId,
+        lockedAssetForSide(order.side, market),
+        lockedAmountForOrder(
+          order.side,
+          Number(order.remainingSize ?? 0),
+          order.price ? Number(order.price) : undefined,
+        ),
+      );
+    }
+    await orderService.cancelOrder(orderId).catch(() => undefined);
+    await addOrderEvent(order.userId, {
+      orderId,
+      status: "cancelled",
+      remainingSize: 0,
+      filledSize: 0,
+      marketId: order.marketId,
+      side: order.side,
+      price: order.price ? Number(order.price) : undefined,
+      size: Number(order.size),
+      updatedAt: Date.now(),
+      message: "Removed because the on-chain order account was missing.",
+    } as any);
+  }
+}
+
+async function purgeMissingOnchainMatches(params: {
+  marketId: string;
+  side: string;
+  type: string;
+  price?: number;
+  incomingOrderId: string;
+  maxRemovals?: number;
+}) {
+  const removed: string[] = [];
+  const maxRemovals = params.maxRemovals ?? 20;
+
+  for (let i = 0; i < maxRemovals; i += 1) {
+    const head = await matchingEngineService.peekBestMatch({
+      marketId: params.marketId,
+      side: params.side,
+      type: params.type,
+      price: params.price,
+    });
+
+    if (!head || head.id === params.incomingOrderId) break;
+
+    const dbOrder = await orderService.getOrder(head.id);
+    const owner = dbOrder
+      ? await resolveOrderPubkey(dbOrder)
+      : await resolveUserPubkey(head.userId, undefined);
+    if (owner && (await onchainOrderExists(owner, head.id))) break;
+
+    removed.push(head.id);
+    await removeOffchainRestingOrder(head.id);
+  }
+
+  return removed;
+}
+
+async function assertOnchainAvailableBalance(params: {
+  userPubkey: PublicKey;
+  tokenMint: PublicKey;
+  asset: string;
+  requiredRaw: string;
+  decimals: number;
+}) {
+  const program = getProgram() as any;
+  const account = await program.account.userBalance.fetchNullable(
+    onchainPdas.userBalance(params.userPubkey, params.tokenMint),
+  );
+
+  if (!account) {
+    throw new Error(
+      `On-chain ${params.asset} balance account was not found. Deposit ${params.asset} into the exchange first.`,
+    );
+  }
+
+  const availableRaw = BigInt(account.availableAmount.toString());
+  const requiredRaw = BigInt(params.requiredRaw);
+  if (availableRaw >= requiredRaw) return;
+
+  const scale = 10 ** params.decimals;
+  const available = Number(availableRaw) / scale;
+  const required = Number(requiredRaw) / scale;
+  throw new Error(
+    `Insufficient on-chain ${params.asset} balance. Available: ${available}, required: ${required}. Deposit more ${params.asset} into the exchange or cancel open orders to unlock funds.`,
+  );
+}
+
 function mapProtectionReason(message: string): ProtectionReason | null {
   if (message.includes("STRONG_STALE")) return ProtectionReason.STRONG_STALE;
   if (message.includes("DEVIATION [HIGH_VOL]")) return ProtectionReason.DEVIATION_HIGH_VOL;
@@ -87,6 +234,36 @@ function mapProtectionReason(message: string): ProtectionReason | null {
   if (message.includes("DELAY [HIGH_VOL]")) return ProtectionReason.DELAY_HIGH_VOL;
   if (message.includes("DELAY")) return ProtectionReason.DELAY;
   return null;
+}
+
+function explainProtectionReason(reason: ProtectionReason | null, message: string) {
+  if (reason === ProtectionReason.STRONG_STALE) {
+    return "stale quote/order protection";
+  }
+  if (reason === ProtectionReason.DELAY || reason === ProtectionReason.DELAY_HIGH_VOL) {
+    return "delay protection";
+  }
+  if (reason === ProtectionReason.DEVIATION || reason === ProtectionReason.DEVIATION_HIGH_VOL) {
+    return "price deviation protection";
+  }
+  return message.replace(/^MPE:\s*/, "") || "market protection";
+}
+
+function mapEngineStatusToDbStatus(status: string) {
+  switch (status) {
+    case "resting":
+      return "OPEN";
+    case "partially_filled":
+      return "PARTIALLY_FILLED";
+    case "filled":
+      return "FILLED";
+    case "cancelled":
+      return "CANCELLED";
+    case "accepted":
+      return "ACCEPTED";
+    default:
+      return "ACCEPTED";
+  }
 }
 
 function getOnchainOrderPrice(
@@ -122,7 +299,11 @@ function getOnchainOrderPrice(
 }
 
 // POST /orders - Place an order
-router.post("/", async (req: Request, res: Response) => {
+router.post(
+  "/",
+  requireUserSession,
+  requireSameUser((req) => req.body?.userId),
+  async (req: Request, res: Response) => {
   try {
     const { userId, marketId, side, size, price, type, onchain } =
       req.body as PlaceOrderRequest;
@@ -143,8 +324,58 @@ router.post("/", async (req: Request, res: Response) => {
       return res.status(404).json({ error: "Market not found" });
     }
 
+    const onchainBaseMint = onchain?.baseMint ?? (req.body as any).baseMint;
+    const onchainQuoteMint = onchain?.quoteMint ?? (req.body as any).quoteMint;
+    const onchainUserPubkey = onchain?.userPubkey ?? (req.body as any).userPubkey;
+    const incomingLockedAsset = lockedAssetForSide(cleanSide, market);
+    const incomingLockedAmount = lockedAmountForOrder(cleanSide, size, price);
+    const incomingBalance = await balanceService.getBalance(userId, incomingLockedAsset);
+    if (!incomingBalance || incomingBalance.available.lessThan(incomingLockedAmount)) {
+      const available = incomingBalance ? incomingBalance.available.toNumber() : 0;
+      return res.status(400).json({
+        error: `Insufficient ${incomingLockedAsset} balance. Available: ${available}, required: ${incomingLockedAmount}.`,
+      });
+    }
+
+    if (onchainBaseMint && onchainQuoteMint && onchainUserPubkey) {
+      try {
+        await assertWalletLinkedToAuthUser(userId, onchainUserPubkey);
+        const userPubkey = new PublicKey(onchainUserPubkey);
+        const baseMint = new PublicKey(onchainBaseMint);
+        const quoteMint = new PublicKey(onchainQuoteMint);
+        const tokenMint = resolveTokenMint(cleanSide, baseMint, quoteMint);
+        const requiredRaw =
+          cleanSide === "BUY"
+            ? toQuoteRawAmount(incomingLockedAmount)
+            : toBaseRawAmount(incomingLockedAmount);
+
+        await assertOnchainAvailableBalance({
+          userPubkey,
+          tokenMint,
+          asset: incomingLockedAsset,
+          requiredRaw,
+          decimals: cleanSide === "BUY" ? 6 : 9,
+        });
+      } catch (error: any) {
+        return res.status(400).json({
+          error: error.message ?? "On-chain balance check failed.",
+        });
+      }
+    }
+
     // Create order in database
     const orderId = uuidv4().replace(/-/g, "");
+    const removedMissingOnchainOrders =
+      onchainBaseMint && onchainQuoteMint
+        ? await purgeMissingOnchainMatches({
+            marketId,
+            side: cleanSide,
+            type: cleanType,
+            price,
+            incomingOrderId: orderId,
+          })
+        : [];
+    let reservedIncomingAmount = 0;
     const dbOrder = await orderService.createOrder(
       userId,
       marketId,
@@ -153,6 +384,7 @@ router.post("/", async (req: Request, res: Response) => {
       size,
       price,
       orderId,
+      onchainUserPubkey,
     );
 
     const result = await matchingEngineService.addOrder(
@@ -167,7 +399,7 @@ router.post("/", async (req: Request, res: Response) => {
       }
     );
 
-    // console.log(result);
+    console.log(result);
 
     // Persist only the actual resting quantity. A crossing limit can fill
     // completely, in which case it should not be added as an open book entry.
@@ -196,9 +428,45 @@ router.post("/", async (req: Request, res: Response) => {
         sellOrderId: trade.sellOrderId,
         timestamp: trade.timestamp,
       });
+      await orderService.recordTrade(
+        trade.makerOrderId,
+        trade.takerOrderId,
+        marketId,
+        trade.price,
+        trade.quantity,
+      );
+    }
+
+    const latestReportsByOrder = new Map<string, (typeof result.executionReports)[number]>();
+    for (const report of result.executionReports) {
+      latestReportsByOrder.set(report.orderId, report);
+    }
+
+    for (const report of latestReportsByOrder.values()) {
+      await orderService.updateOrderExecution(
+        report.orderId,
+        mapEngineStatusToDbStatus(report.status),
+        report.remainingQuantity,
+      );
     }
 
     for (const report of makerReports) {
+      const makerOrder = await orderService.getOrder(report.orderId);
+      const makerMarket = makerOrder
+        ? await marketService.getMarket(makerOrder.marketId)
+        : null;
+      const makerAsset =
+        makerOrder && makerMarket ? lockedAssetForSide(makerOrder.side, makerMarket) : null;
+      const makerPrice = makerOrder?.price ? Number(makerOrder.price) : undefined;
+
+      if (makerOrder && makerAsset && report.filledQuantity > 0) {
+        await balanceService.consumeReserved(
+          makerOrder.userId,
+          makerAsset,
+          lockedAmountForOrder(makerOrder.side, report.filledQuantity, makerPrice),
+        );
+      }
+
       if (report.status === "filled") {
         await deleteOrder(report.orderId);
         continue;
@@ -213,6 +481,13 @@ router.post("/", async (req: Request, res: Response) => {
       }
 
       if (report.status === "cancelled") {
+        if (makerOrder && makerAsset) {
+          await balanceService.release(
+            makerOrder.userId,
+            makerAsset,
+            lockedAmountForOrder(makerOrder.side, report.remainingQuantity, makerPrice),
+          );
+        }
         await deleteOrder(report.orderId);
       }
     }
@@ -220,6 +495,20 @@ router.post("/", async (req: Request, res: Response) => {
     const mpeReports = result.executionReports.filter(
       (report) => report.message && report.message.startsWith("MPE:"),
     );
+    const protectionReports = mpeReports.map((report) => {
+      const reason = mapProtectionReason(report.message ?? "");
+      return {
+        orderId: report.orderId,
+        action: "cancelled",
+        reason,
+        message: report.message,
+        displayMessage: explainProtectionReason(reason, report.message ?? ""),
+        quoteAgeMs:
+          report.mpe?.quoteAgeMs != null ? Math.round(report.mpe.quoteAgeMs) : null,
+        quotePrice: report.mpe?.quotePrice ?? null,
+        priceDeviation: report.mpe?.priceDeviation ?? null,
+      };
+    });
 
     for (const report of mpeReports) {
       const reason = mapProtectionReason(report.message ?? "");
@@ -255,12 +544,8 @@ router.post("/", async (req: Request, res: Response) => {
     });
 
     const orderbookSnapshot = await matchingEngineService.getSnapshot(marketId);
-    // console.log(orderbookSnapshot)
+    console.log(orderbookSnapshot)
     const timestamp = Date.now();
-
-    const onchainBaseMint = onchain?.baseMint ?? (req.body as any).baseMint;
-    const onchainQuoteMint = onchain?.quoteMint ?? (req.body as any).quoteMint;
-    const onchainUserPubkey = onchain?.userPubkey ?? (req.body as any).userPubkey;
 
     let placeOrderTx: string | null = null;
     let settlementTxs: Array<{ tradeId: string; transaction: string }> = [];
@@ -325,14 +610,8 @@ router.post("/", async (req: Request, res: Response) => {
                 return null;
               }
 
-              const buyerPubkey = await resolveUserPubkey(
-                buyOrder.userId,
-                undefined,
-              );
-              const sellerPubkey = await resolveUserPubkey(
-                sellOrder.userId,
-                undefined,
-              );
+              const buyerPubkey = await resolveOrderPubkey(buyOrder);
+              const sellerPubkey = await resolveOrderPubkey(sellOrder);
               if (!buyerPubkey || !sellerPubkey) {
                 settlementSkipped.push(trade.tradeId);
                 return null;
@@ -409,10 +688,7 @@ router.post("/", async (req: Request, res: Response) => {
               const makerOrder = await orderService.getOrder(report.orderId);
               if (!makerOrder) return null;
 
-              const makerPubkey = await resolveUserPubkey(
-                makerOrder.userId,
-                undefined,
-              );
+              const makerPubkey = await resolveOrderPubkey(makerOrder);
               if (!makerPubkey) return null;
 
               const tokenMint = resolveTokenMint(
@@ -512,10 +788,21 @@ router.post("/", async (req: Request, res: Response) => {
       });
     }
 
+    if (result.restingOrder) {
+      reservedIncomingAmount = lockedAmountForOrder(
+        cleanSide,
+        result.restingOrder.remainingQuantity,
+        result.restingOrder.price,
+      );
+      await balanceService.reserve(userId, incomingLockedAsset, reservedIncomingAmount);
+    }
+
     res.status(201).json({
       orderId,
       ...dbOrder,
       orderBookResult: result,
+      removedMissingOnchainOrders,
+      protectionReports,
       orderbookSnapshot: {
         bids: orderbookSnapshot.bids.map((level) => ({
           price: level.price,
@@ -555,10 +842,11 @@ router.post("/", async (req: Request, res: Response) => {
     // console.log(error);
     res.status(500).json({ error: error.message });
   }
-});
+  },
+);
 
 // GET /orders/:orderId - Get order details
-router.get("/:orderId", async (req: Request, res: Response) => {
+router.get("/:orderId", requireUserSession, async (req: Request, res: Response) => {
   try {
     const orderId = Array.isArray(req.params.orderId)
       ? req.params.orderId[0]
@@ -567,6 +855,9 @@ router.get("/:orderId", async (req: Request, res: Response) => {
 
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
+    }
+    if (order.userId !== req.authUserId) {
+      return res.status(403).json({ error: "Cannot access another user's order" });
     }
 
     res.json(order);
@@ -576,7 +867,7 @@ router.get("/:orderId", async (req: Request, res: Response) => {
 });
 
 // DELETE /orders/:orderId - Cancel order
-router.delete("/:orderId", async (req: Request, res: Response) => {
+router.delete("/:orderId", requireUserSession, async (req: Request, res: Response) => {
   try {
     const orderId = Array.isArray(req.params.orderId)
       ? req.params.orderId[0]
@@ -586,10 +877,26 @@ router.delete("/:orderId", async (req: Request, res: Response) => {
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
     }
+    if (order.userId !== req.authUserId) {
+      return res.status(403).json({ error: "Cannot cancel another user's order" });
+    }
 
     // Cancel in the same matching-engine book used by order placement.
     matchingEngineService.cancelOrder(orderId);
     await deleteOrder(orderId);
+
+    const market = await marketService.getMarket(order.marketId);
+    if (market) {
+      await balanceService.release(
+        order.userId,
+        lockedAssetForSide(order.side, market),
+        lockedAmountForOrder(
+          order.side,
+          Number(order.remainingSize ?? 0),
+          order.price ? Number(order.price) : undefined,
+        ),
+      );
+    }
 
     // Update in database
     const cancelled = await orderService.cancelOrder(orderId);
@@ -619,7 +926,7 @@ router.delete("/:orderId", async (req: Request, res: Response) => {
 
     if (baseMintInput && quoteMintInput) {
       try {
-        const userPubkey = await resolveUserPubkey(order.userId, userPubkeyInput);
+        const userPubkey = await resolveOrderPubkey(order, userPubkeyInput);
         if (userPubkey) {
           const baseMint = new PublicKey(baseMintInput);
           const quoteMint = new PublicKey(quoteMintInput);
@@ -659,7 +966,7 @@ router.delete("/:orderId", async (req: Request, res: Response) => {
 });
 
 // PATCH /orders/:orderId - Modify order
-router.patch("/:orderId", async (req: Request, res: Response) => {
+router.patch("/:orderId", requireUserSession, async (req: Request, res: Response) => {
   try {
     const orderId = Array.isArray(req.params.orderId)
       ? req.params.orderId[0]
@@ -673,6 +980,9 @@ router.patch("/:orderId", async (req: Request, res: Response) => {
     const order = await orderService.getOrder(orderId);
     if (!order) {
       return res.status(404).json({ error: "Order not found" });
+    }
+    if (order.userId !== req.authUserId) {
+      return res.status(403).json({ error: "Cannot modify another user's order" });
     }
 
     // Note: Order modification in the orderbook is not supported in @repo/orderbook
@@ -700,7 +1010,13 @@ router.patch("/:orderId", async (req: Request, res: Response) => {
 });
 
 // GET /users/:userId/orders - Get user's orders
-router.get("/user/:userId/all", async (req: Request, res: Response) => {
+router.get(
+  "/user/:userId/all",
+  requireUserSession,
+  requireSameUser((req) =>
+    Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId,
+  ),
+  async (req: Request, res: Response) => {
   try {
     const userId = Array.isArray(req.params.userId)
       ? req.params.userId[0]
@@ -710,10 +1026,17 @@ router.get("/user/:userId/all", async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
-});
+  },
+);
 
 // GET /users/:userId/orders/open - Get user's open orders
-router.get("/user/:userId/open", async (req: Request, res: Response) => {
+router.get(
+  "/user/:userId/open",
+  requireUserSession,
+  requireSameUser((req) =>
+    Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId,
+  ),
+  async (req: Request, res: Response) => {
   try {
     const userId = Array.isArray(req.params.userId)
       ? req.params.userId[0]
@@ -723,6 +1046,7 @@ router.get("/user/:userId/open", async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
-});
+  },
+);
 
 export default router;

@@ -254,6 +254,36 @@ export class MatchingEngineService {
     return this.engine.addOrder(matchingOrder);
   }
 
+  async peekBestMatch(request: {
+    marketId: string;
+    side: string;
+    type: string;
+    price?: number;
+  }): Promise<RestingOrder | undefined> {
+    const market = await marketService.getMarket(request.marketId);
+
+    if (!market) {
+      throw new Error(`Market not found: ${request.marketId}`);
+    }
+
+    const incomingSide = request.side.toLowerCase() as "buy" | "sell";
+    const oppositeSide = incomingSide === "buy" ? "sell" : "buy";
+    const bestOppositePrice = this.adapter.getBestPrice(market.symbol, oppositeSide);
+
+    if (bestOppositePrice === undefined) return undefined;
+    if (
+      request.type.toLowerCase() === "limit" &&
+      request.price !== undefined &&
+      (incomingSide === "buy"
+        ? request.price < bestOppositePrice
+        : request.price > bestOppositePrice)
+    ) {
+      return undefined;
+    }
+
+    return this.adapter.peekHead(market.symbol, oppositeSide, bestOppositePrice);
+  }
+
   cancelOrder(orderId: string): CancelResult {
     return this.engine.cancelOrder(orderId);
   }

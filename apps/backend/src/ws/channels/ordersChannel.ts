@@ -58,6 +58,12 @@ export class OrdersChannel implements IWsChannel {
       client.socket.send(JSON.stringify({ error: 'orders channel requires userId param' }));
       return;
     }
+
+    if (params.authUserId !== userId) {
+      client.socket.send(JSON.stringify({ error: 'orders channel requires a matching logged-in user' }));
+      return;
+    }
+
     const topic = SubscriptionManager.makeTopic(CHANNEL_NAME, { userId });
     this.sm.subscribe(client.id, topic);
 

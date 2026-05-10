@@ -9,6 +9,7 @@ import {
   serializeTx,
   SYSTEM_PROGRAM_ID,
 } from "../services/onchain";
+import { requireSameUser, requireUserSession } from "../middleware/auth";
 
 const router = Router();
 
@@ -26,24 +27,22 @@ router.post("/sync", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Missing required field: walletAddress" });
     }
 
-    const normalizedEmail = email ?? `${walletAddress.toLowerCase()}@wallet.plut0x.local`;
-    const normalizedName = name ?? `Wallet ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`;
-
-    // Check if wallet already exists
     let wallet = await prisma.wallet.findUnique({
       where: { address: walletAddress },
       include: { user: true },
     });
 
-    const user = wallet
-      ? wallet.user
-      : await prisma.user.upsert({
-          where: { email: normalizedEmail },
-          update: { name: normalizedName },
-          create: { email: normalizedEmail, name: normalizedName },
-        });
+    const normalizedEmail = email ?? `${walletAddress.toLowerCase()}@wallet.plut0x.local`;
+    const normalizedName = name ?? `Wallet ${walletAddress.slice(0, 4)}...${walletAddress.slice(-4)}`;
+    const user =
+      !email && wallet
+        ? wallet.user
+        : await prisma.user.upsert({
+            where: { email: normalizedEmail },
+            update: { name: normalizedName },
+            create: { email: normalizedEmail, name: normalizedName },
+          });
 
-    // If wallet doesn't exist, create it for this user
     if (!wallet) {
       wallet = await prisma.wallet.create({
         data: {
@@ -53,8 +52,9 @@ router.post("/sync", async (req: Request, res: Response) => {
         include: { user: true },
       });
     } else if (wallet.userId !== user.id) {
-      // If wallet exists but belongs to different user, don't update to prevent hijacking
-      return res.status(409).json({ error: "Wallet already linked to another user" });
+      return res.status(409).json({
+        error: `Wallet already linked to ${wallet.user.email}. Log out, switch Phantom wallet, or use that account.`,
+      });
     }
 
     let onchain:
@@ -120,7 +120,13 @@ router.post("/sync", async (req: Request, res: Response) => {
 
 
 // GET /users/:userId/profile - Get user profile (name, email, wallets, balances)
-router.get("/:userId/profile", async (req: Request, res: Response) => {
+router.get(
+  "/:userId/profile",
+  requireUserSession,
+  requireSameUser((req) =>
+    Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId,
+  ),
+  async (req: Request, res: Response) => {
   try {
     const userId = Array.isArray(req.params.userId)
       ? req.params.userId[0]
@@ -148,10 +154,17 @@ router.get("/:userId/profile", async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
-});
+  },
+);
 
 // GET /users/:userId/orders - Get all user orders (open or not)
-router.get("/:userId/orders", async (req: Request, res: Response) => {
+router.get(
+  "/:userId/orders",
+  requireUserSession,
+  requireSameUser((req) =>
+    Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId,
+  ),
+  async (req: Request, res: Response) => {
   try {
     const userId = Array.isArray(req.params.userId)
       ? req.params.userId[0]
@@ -168,10 +181,17 @@ router.get("/:userId/orders", async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
-});
+  },
+);
 
 // GET /users/:userId/trades - Get all user trades
-router.get("/:userId/trades", async (req: Request, res: Response) => {
+router.get(
+  "/:userId/trades",
+  requireUserSession,
+  requireSameUser((req) =>
+    Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId,
+  ),
+  async (req: Request, res: Response) => {
   try {
     const userId = Array.isArray(req.params.userId)
       ? req.params.userId[0]
@@ -216,10 +236,17 @@ router.get("/:userId/trades", async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
-});
+  },
+);
 
 // PATCH /users/:userId/name - Update user name only
-router.patch("/:userId/name", async (req: Request, res: Response) => {
+router.patch(
+  "/:userId/name",
+  requireUserSession,
+  requireSameUser((req) =>
+    Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId,
+  ),
+  async (req: Request, res: Response) => {
   try {
     const userId = Array.isArray(req.params.userId)
       ? req.params.userId[0]
@@ -248,6 +275,7 @@ router.patch("/:userId/name", async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
-});
+  },
+);
 
 export default router;

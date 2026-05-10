@@ -1,11 +1,18 @@
 import { Router, Request, Response } from 'express';
 import { balanceService } from '../services/balance';
 import { DepositRequest, WithdrawRequest } from '../types';
+import { requireSameUser, requireUserSession } from '../middleware/auth';
 
 const router = Router();
 
 // GET /users/:userId/balances - Get user balances
-router.get('/user/:userId', async (req: Request, res: Response) => {
+router.get(
+  '/user/:userId',
+  requireUserSession,
+  requireSameUser((req) =>
+    Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId,
+  ),
+  async (req: Request, res: Response) => {
   try {
     const userId = Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId;
     const balances = await balanceService.getUserBalances(userId);
@@ -13,10 +20,15 @@ router.get('/user/:userId', async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
-});
+  },
+);
 
 // POST /balances/deposit - Deposit balance (simulated)
-router.post('/deposit', async (req: Request, res: Response) => {
+router.post(
+  '/deposit',
+  requireUserSession,
+  requireSameUser((req) => req.body?.userId),
+  async (req: Request, res: Response) => {
   try {
     const { userId, asset, amount } = req.body as DepositRequest;
 
@@ -33,10 +45,15 @@ router.post('/deposit', async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
-});
+  },
+);
 
 // POST /balances/withdraw - Withdraw balance (simulated)
-router.post('/withdraw', async (req: Request, res: Response) => {
+router.post(
+  '/withdraw',
+  requireUserSession,
+  requireSameUser((req) => req.body?.userId),
+  async (req: Request, res: Response) => {
   try {
     const { userId, asset, amount } = req.body as WithdrawRequest;
 
@@ -53,6 +70,7 @@ router.post('/withdraw', async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
-});
+  },
+);
 
 export default router;

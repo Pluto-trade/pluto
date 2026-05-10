@@ -12,7 +12,8 @@ export class OrderService {
     type: string,
     size: number,
     price?: number,
-    externalOrderId?: string
+    externalOrderId?: string,
+    walletAddress?: string | null,
   ) {
     const orderId = externalOrderId || uuidv4();
 
@@ -29,6 +30,15 @@ export class OrderService {
         status: 'ACCEPTED',
       },
     });
+
+    if (walletAddress) {
+      await prisma.$executeRaw`
+        UPDATE "Order"
+        SET "walletAddress" = ${walletAddress}
+        WHERE "id" = ${order.id}
+      `;
+      return { ...order, walletAddress };
+    }
 
     return order;
   }
@@ -47,10 +57,35 @@ export class OrderService {
     });
   }
 
+  async updateOrderExecution(
+    orderId: string,
+    status: string,
+    remainingSize: number,
+  ) {
+    return await prisma.order.update({
+      where: { id: orderId },
+      data: {
+        status: status as any,
+        remainingSize: new Decimal(remainingSize),
+      },
+    });
+  }
+
   async getOrder(orderId: string) {
     return await prisma.order.findUnique({
       where: { id: orderId },
     });
+  }
+
+  async getOrderWalletAddress(orderId: string) {
+    const rows = await prisma.$queryRaw<Array<{ walletAddress: string | null }>>`
+      SELECT "walletAddress"
+      FROM "Order"
+      WHERE "id" = ${orderId}
+      LIMIT 1
+    `;
+
+    return rows[0]?.walletAddress ?? null;
   }
 
   async getUserOrders(userId: string) {
@@ -80,16 +115,16 @@ export class OrderService {
   }
 
   async recordTrade(
-    buyOrderId: string,
-    sellOrderId: string,
+    makerOrderId: string,
+    takerOrderId: string,
     marketId: string,
     price: number,
     size: number
   ) {
     return await prisma.trade.create({
       data: {
-        makerOrderId: buyOrderId,
-        takerOrderId: sellOrderId,
+        makerOrderId,
+        takerOrderId,
         marketId,
         price: new Decimal(price),
         size: new Decimal(size),

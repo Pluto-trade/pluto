@@ -17,6 +17,10 @@ import {
   SYSTEM_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
 } from "../services/onchain";
+import {
+  assertWalletLinkedToAuthUser,
+  requireUserSession,
+} from "../middleware/auth";
 
 const router = Router();
 
@@ -188,12 +192,13 @@ router.post("/custody/initialize", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/tx/create-user", async (req: Request, res: Response) => {
+router.post("/tx/create-user", requireUserSession, async (req: Request, res: Response) => {
   try {
     const { userPubkey } = req.body as { userPubkey: string };
     if (!userPubkey) {
       return res.status(400).json({ error: "userPubkey required" });
     }
+    await assertWalletLinkedToAuthUser(req.authUserId!, userPubkey);
 
     const user = parsePubkey(userPubkey, "userPubkey");
     const program = getProgram() as any;
@@ -216,7 +221,7 @@ router.post("/tx/create-user", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/tx/deposit", async (req: Request, res: Response) => {
+router.post("/tx/deposit", requireUserSession, async (req: Request, res: Response) => {
   try {
     const {
       userPubkey,
@@ -235,6 +240,7 @@ router.post("/tx/deposit", async (req: Request, res: Response) => {
     if (!userPubkey || !tokenMint || !userTokenAccount || !vaultTokenAccount) {
       return res.status(400).json({ error: "Missing required fields" });
     }
+    await assertWalletLinkedToAuthUser(req.authUserId!, userPubkey);
 
     const user = parsePubkey(userPubkey, "userPubkey");
     const mint = parsePubkey(tokenMint, "tokenMint");
@@ -265,7 +271,7 @@ router.post("/tx/deposit", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/tx/withdraw", async (req: Request, res: Response) => {
+router.post("/tx/withdraw", requireUserSession, async (req: Request, res: Response) => {
   try {
     const {
       userPubkey,
@@ -284,6 +290,7 @@ router.post("/tx/withdraw", async (req: Request, res: Response) => {
     if (!userPubkey || !tokenMint || !userTokenAccount || !vaultTokenAccount) {
       return res.status(400).json({ error: "Missing required fields" });
     }
+    await assertWalletLinkedToAuthUser(req.authUserId!, userPubkey);
 
     const user = parsePubkey(userPubkey, "userPubkey");
     const mint = parsePubkey(tokenMint, "tokenMint");
@@ -313,7 +320,7 @@ router.post("/tx/withdraw", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/tx/place-order", async (req: Request, res: Response) => {
+router.post("/tx/place-order", requireUserSession, async (req: Request, res: Response) => {
   try {
     const {
       userPubkey,
@@ -338,6 +345,7 @@ router.post("/tx/place-order", async (req: Request, res: Response) => {
     if (!userPubkey || !tokenMint || !orderId || !symbol || !side || !orderType) {
       return res.status(400).json({ error: "Missing required fields" });
     }
+    await assertWalletLinkedToAuthUser(req.authUserId!, userPubkey);
 
     const user = parsePubkey(userPubkey, "userPubkey");
     const mint = parsePubkey(tokenMint, "tokenMint");
@@ -503,7 +511,7 @@ router.post("/tx/settle-trade", async (req: Request, res: Response) => {
   }
 });
 
-router.post("/tx/submit", async (req: Request, res: Response) => {
+router.post("/tx/submit", requireUserSession, async (req: Request, res: Response) => {
   try {
     const { transaction } = req.body as { transaction: string };
     if (!transaction) {

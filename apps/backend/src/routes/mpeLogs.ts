@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import { prisma, ProtectionReason } from "@repo/database";
+import { requireSameUser, requireUserSession } from "../middleware/auth";
 
 const router = Router();
 
@@ -45,7 +46,13 @@ router.get("/summary", async (_req: Request, res: Response) => {
 });
 
 // Fetch stale-order stats for a specific user.
-router.get("/user/:userId", async (req: Request, res: Response) => {
+router.get(
+  "/user/:userId",
+  requireUserSession,
+  requireSameUser((req) =>
+    Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId,
+  ),
+  async (req: Request, res: Response) => {
   try {
     const userId = Array.isArray(req.params.userId)
       ? req.params.userId[0]
@@ -74,6 +81,7 @@ router.get("/user/:userId", async (req: Request, res: Response) => {
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
-});
+  },
+);
 
 export default router;

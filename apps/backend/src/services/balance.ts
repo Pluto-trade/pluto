@@ -91,6 +91,26 @@ export class BalanceService {
     });
   }
 
+  async consumeReserved(userId: string, asset: string, amount: number) {
+    const balance = await this.getBalance(userId, asset);
+
+    if (!balance) {
+      throw new Error('Balance not found');
+    }
+
+    const decimalAmount = new Decimal(amount);
+    const nextReserved = balance.reserved.minus(decimalAmount);
+
+    return await prisma.balances.update({
+      where: {
+        userId_asset: userAssetKey(userId, asset),
+      },
+      data: {
+        reserved: Decimal.max(nextReserved, new Decimal(0)),
+      },
+    });
+  }
+
   async release(userId: string, asset: string, amount: number) {
     const balance = await this.getBalance(userId, asset);
 
@@ -98,13 +118,16 @@ export class BalanceService {
       throw new Error('Balance not found');
     }
 
+    const decimalAmount = new Decimal(amount);
+    const releasable = Decimal.min(balance.reserved, decimalAmount);
+
     return await prisma.balances.update({
       where: {
         userId_asset: userAssetKey(userId, asset),
       },
       data: {
-        available: balance.available.plus(new Decimal(amount)),
-        reserved: balance.reserved.minus(new Decimal(amount)),
+        available: balance.available.plus(releasable),
+        reserved: balance.reserved.minus(releasable),
       },
     });
   }
