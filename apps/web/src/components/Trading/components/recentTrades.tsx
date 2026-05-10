@@ -63,6 +63,7 @@ export const RecentTrades = ({
   hideHeader?: boolean;
 }) => {
   const { recentTrades, selectedSymbol } = useTradingStore();
+  const [baseAsset] = selectedSymbol.split("-");
 
   return (
     <div className="flex flex-col h-full border border-[#1e222d] bg-[#081126]/90  shadow-lg backdrop-blur-xl overflow-hidden">
@@ -82,7 +83,7 @@ export const RecentTrades = ({
           Price (USD)
         </span>
         <span className="w-[32%] text-right text-[10px] text-slate-600 font-medium">
-          Qty (BTC)
+          Qty ({baseAsset || "Base"})
         </span>
         <span className="w-[30%] text-right text-[10px] text-slate-600 font-medium">
           Time

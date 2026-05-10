@@ -48,7 +48,7 @@ export function useOrdersChannel() {
             JSON.stringify({
               action: "subscribe",
               channel: "orders",
-              params: { userId },
+              params: { userId, authUserId: userId },
             })
           );
         };

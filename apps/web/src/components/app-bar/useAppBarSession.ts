@@ -20,6 +20,9 @@ export function useAppBarSession() {
     const logout = async () => {
         await privyLogout();
         setUserId(null);
+        if (typeof window !== "undefined") {
+            window.localStorage.removeItem("plut0x:walletAddress");
+        }
         lastSyncedKey.current = null;
         inFlightSyncKey.current = null;
         setSyncError(null);
@@ -70,6 +73,8 @@ export function useAppBarSession() {
 
                 const data = await syncUserForWallet({
                     walletAddress,
+                    email: userEmail,
+                    name: userName,
                     includeOnchain: false,
                 });
 
@@ -107,7 +112,21 @@ export function useAppBarSession() {
     };
 
     const handleConnectWallet = async () => {
-        await linkWallet();
+        setSyncError(null);
+        setSyncStatus(hasLinkedWallet ? "Opening wallet selector..." : null);
+
+        try {
+            await linkWallet();
+            setSyncStatus("Wallet connected. Syncing account...");
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Wallet connection failed.";
+            setSyncStatus(null);
+            setSyncError(
+                message.toLowerCase().includes("linking")
+                    ? "This wallet is already linked to another account. Log out first, then connect the account you want to use."
+                    : message,
+            );
+        }
     };
 
     return {

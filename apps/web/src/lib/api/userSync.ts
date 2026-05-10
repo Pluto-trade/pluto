@@ -22,17 +22,31 @@ export function walletIdentity(walletAddress: string) {
 
 export function syncUserForWallet({
   walletAddress,
+  email,
+  name,
   includeOnchain,
 }: {
   walletAddress: string;
+  email?: string;
+  name?: string;
   includeOnchain: boolean;
 }) {
-  return apiFetch<UserSyncResponse>("/users/sync", {
+  const identity = email && name ? { email, name } : walletIdentity(walletAddress);
+
+  const promise = apiFetch<UserSyncResponse>("/users/sync", {
     method: "POST",
     body: JSON.stringify({
-      ...walletIdentity(walletAddress),
+      ...identity,
       walletAddress,
       includeOnchain,
     }),
+  });
+
+  return promise.then((response) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("plut0x:userId", response.id);
+      window.localStorage.setItem("plut0x:walletAddress", walletAddress);
+    }
+    return response;
   });
 }

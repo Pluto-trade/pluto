@@ -19,6 +19,7 @@ import {
 } from "@/lib/solanaSigner";
 import { useEnsureOnchainUser } from "@/hooks/useEnsureOnchainUser";
 import { cancelOrder } from "@/lib/api/orders";
+import type { PlaceOrderResponse } from "@/lib/api/orders";
 
 // ============ PLACEHOLDER COMPONENTS ============
 
@@ -156,6 +157,20 @@ function balanceAssetForSymbol(asset: string) {
   return asset.toUpperCase() === "SOL" ? "wSOL" : asset;
 }
 
+function formatProtectionNotice(result: PlaceOrderResponse, signature?: string) {
+  const report = result.protectionReports?.[0];
+  if (!report) return null;
+
+  const cancelledCount = result.protectionReports?.length ?? 1;
+  const reason = report.displayMessage || report.reason || "market protection";
+  const age = report.quoteAgeMs != null ? ` Quote age: ${report.quoteAgeMs}ms.` : "";
+  const tx = signature ? ` New order submitted: ${signature}` : "";
+
+  return `Stale/protected resting order detected. Cancelled ${cancelledCount} order${
+    cancelledCount === 1 ? "" : "s"
+  } due to ${reason}.${age}${tx}`;
+}
+
 export const TransactionPanel = () => {
   const {
     tradePanel,
@@ -178,6 +193,7 @@ export const TransactionPanel = () => {
   const { signAndSendTransaction } = useSignAndSendTransaction();
   const ensureOnchainUser = useEnsureOnchainUser();
   const [txStatus, setTxStatus] = useState<string | null>(null);
+  const [txStatusTone, setTxStatusTone] = useState<"success" | "warning">("success");
   const [formError, setFormError] = useState<string | null>(null);
 
   const privySigningWallet =
@@ -189,6 +205,7 @@ export const TransactionPanel = () => {
   const handlePlaceOrder = async () => {
     setFormError(null);
     setTxStatus(null);
+    setTxStatusTone("success");
 
     const size = Number(tradePanel.size);
     const price =
@@ -273,17 +290,27 @@ export const TransactionPanel = () => {
             privySignAndSendTransaction: signAndSendTransaction,
           });
 
-          setTxStatus(`Order submitted: ${signature}`);
+          const protectionNotice = formatProtectionNotice(result, signature);
+          setTxStatus(protectionNotice ?? `Order submitted: ${signature}`);
+          setTxStatusTone(protectionNotice ? "warning" : "success");
         } catch (error) {
           if (acceptedOrderId) {
             await cancelOrder(acceptedOrderId).catch(() => undefined);
           }
           throw error;
         }
-      } else if (result.onchain?.warnings?.length) {
-        setTxStatus(result.onchain.warnings[0]);
       } else {
-        setTxStatus("Order accepted by the matching engine.");
+        const protectionNotice = formatProtectionNotice(result);
+        if (protectionNotice) {
+          setTxStatus(protectionNotice);
+          setTxStatusTone("warning");
+        } else if (result.onchain?.warnings?.length) {
+          setTxStatus(result.onchain.warnings[0]);
+          setTxStatusTone("warning");
+        } else {
+          setTxStatus("Order accepted by the matching engine.");
+          setTxStatusTone("success");
+        }
       }
 
       resetTradePanel();
@@ -405,7 +432,13 @@ export const TransactionPanel = () => {
         )}
 
         {txStatus && (
-          <p className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-200">
+          <p
+            className={`rounded-md border px-3 py-2 text-xs ${
+              txStatusTone === "warning"
+                ? "border-amber-500/40 bg-amber-500/10 text-amber-200"
+                : "border-cyan-500/30 bg-cyan-500/10 text-cyan-200"
+            }`}
+          >
             {txStatus}
           </p>
         )}

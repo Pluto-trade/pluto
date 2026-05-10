@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { ApiMarket, Order, Position } from '@/types/trading';
 import { useTradingStore } from '@/store/tradingStore';
-import { getUserOrders, getUserOpenOrders } from '@/lib/api/users';
+import { getUserOrders, getUserOpenOrders, getUserProfile } from '@/lib/api/users';
 import { getUserBalances } from '@/lib/api/balances';
 import {
   cancelOrder,
@@ -31,6 +31,17 @@ export const useUserOrders = (limit = 100) => {
   return useQuery({
     queryKey: ['user-orders', userId, limit],
     queryFn: () => (userId ? getUserOrders(userId, limit) : Promise.resolve([])),
+    enabled: !!userId,
+    staleTime: 5 * 1000,
+  });
+};
+
+export const useUserProfile = () => {
+  const { userId } = useTradingStore();
+
+  return useQuery({
+    queryKey: ['user-profile', userId],
+    queryFn: () => (userId ? getUserProfile(userId) : Promise.resolve(null)),
     enabled: !!userId,
     staleTime: 5 * 1000,
   });

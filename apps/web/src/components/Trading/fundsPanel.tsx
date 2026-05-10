@@ -30,6 +30,7 @@ import {
   signAndSendSolanaTransaction,
 } from "@/lib/solanaSigner";
 import { useEnsureOnchainUser } from "@/hooks/useEnsureOnchainUser";
+import { useBalances, useUserProfile } from "@/hooks/useApi";
 
 type Mode = "deposit" | "withdraw";
 
@@ -48,12 +49,26 @@ function resolveConfiguredVault(asset: string) {
     : vaults.quoteVaultTokenAccount;
 }
 
+function shortAddress(address: string) {
+  if (address.length <= 12) return address;
+  return `${address.slice(0, 4)}...${address.slice(-4)}`;
+}
+
+function formatAmount(value: number) {
+  if (!Number.isFinite(value)) return "0";
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: value >= 1 ? 4 : 6,
+  });
+}
+
 export function FundsPanel() {
   const { userId } = useTradingStore();
   const { wallet, signingAddress } = useActiveSolanaWallet();
   const { signAndSendTransaction } = useSignAndSendTransaction();
   const ensureOnchainUser = useEnsureOnchainUser();
   const queryClient = useQueryClient();
+  const { data: profile } = useUserProfile();
+  const { data: balances = [] } = useBalances();
   const [mode, setMode] = useState<Mode>("deposit");
   const [asset, setAsset] = useState<(typeof ASSETS)[number]>("USDC");
   const [amount, setAmount] = useState("");
@@ -66,6 +81,8 @@ export function FundsPanel() {
       ? wallet
       : null;
   const configuredVault = resolveConfiguredVault(asset);
+  const displayedWallet = signingAddress ?? profile?.wallets?.[0]?.address;
+  const displayedBalances = balances.length > 0 ? balances : profile?.balances ?? [];
 
   const custodyQuery = useQuery({
     queryKey: ["custody", mint],
@@ -194,6 +211,46 @@ export function FundsPanel() {
               {item === "deposit" ? "Deposit" : "Withdraw"}
             </button>
           ))}
+        </div>
+      </div>
+
+      <div className="mb-3 grid grid-cols-[0.95fr_1.35fr] gap-2 text-xs">
+        <div className="min-w-0 rounded-md border border-slate-800 bg-slate-950/40 p-2">
+          <span className="block text-[10px] uppercase tracking-wide text-slate-500">
+            Account
+          </span>
+          <p className="mt-1 truncate font-medium text-slate-200">
+            {profile?.name || profile?.email || (userId ? shortAddress(userId) : "Not connected")}
+          </p>
+          {displayedWallet ? (
+            <p className="mt-0.5 truncate text-[11px] text-slate-500">
+              {shortAddress(displayedWallet)}
+            </p>
+          ) : null}
+        </div>
+
+        <div className="min-w-0 rounded-md border border-slate-800 bg-slate-950/40 p-2">
+          <div className="mb-1 grid grid-cols-[0.7fr_1fr_1fr] gap-2 text-[10px] uppercase tracking-wide text-slate-500">
+            <span>Asset</span>
+            <span className="text-right">Available</span>
+            <span className="text-right">Locked</span>
+          </div>
+          {displayedBalances.length > 0 ? (
+            displayedBalances.map((balance) => (
+              <div
+                key={balance.asset}
+                className="grid grid-cols-[0.7fr_1fr_1fr] gap-2 py-0.5 text-[11px] text-slate-300"
+              >
+                <span className="font-medium text-slate-200">{balance.asset}</span>
+                <span className="text-right">{formatAmount(balance.available)}</span>
+                <span className="text-right text-slate-500">
+                  {formatAmount(balance.locked)}
+                </span>
+              </div>
+            ))
+          ) : (
+            <p className="py-1 text-[11px] text-slate-500">No balances yet.</p>
+          )}
         </div>
       </div>
 

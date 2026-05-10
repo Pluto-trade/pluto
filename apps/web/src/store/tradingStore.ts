@@ -62,10 +62,33 @@ const initialTradePanel = {
   size: "",
 };
 
+function uniqueTrades(trades: Trade[]) {
+  const seen = new Set<string>();
+  const deduped: Trade[] = [];
+
+  for (const trade of trades) {
+    const key = trade.id || `${trade.symbol}:${trade.price}:${trade.size}:${trade.timestamp}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push(trade);
+  }
+
+  return deduped;
+}
+
 export const useTradingStore = create<TradingState>((set) => ({
   // User Data
   userId: null,
-  setUserId: (userId) => set({ userId }),
+  setUserId: (userId) => {
+    if (typeof window !== "undefined") {
+      if (userId) {
+        window.localStorage.setItem("plut0x:userId", userId);
+      } else {
+        window.localStorage.removeItem("plut0x:userId");
+      }
+    }
+    set({ userId });
+  },
 
   // Market Selection
   selectedSymbol: "BTC-PERP",
@@ -85,11 +108,21 @@ export const useTradingStore = create<TradingState>((set) => ({
 
   // Recent Trades
   recentTrades: [],
-  setRecentTrades: (recentTrades) => set({ recentTrades }),
+  setRecentTrades: (recentTrades) => set({ recentTrades: uniqueTrades(recentTrades) }),
   addRecentTrade: (trade) =>
-    set((state) => ({
-      recentTrades: [trade, ...state.recentTrades].slice(0, 50), // Keep last 50
-    })),
+    set((state) => {
+      const tradeKey = trade.id || `${trade.symbol}:${trade.price}:${trade.size}:${trade.timestamp}`;
+      const alreadyExists = state.recentTrades.some((item) => {
+        const itemKey = item.id || `${item.symbol}:${item.price}:${item.size}:${item.timestamp}`;
+        return itemKey === tradeKey;
+      });
+
+      if (alreadyExists) return state;
+
+      return {
+        recentTrades: uniqueTrades([trade, ...state.recentTrades]).slice(0, 50),
+      };
+    }),
   clearTrades: () => set({ recentTrades: [] }),
 
   // Market Data

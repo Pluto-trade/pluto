@@ -1,3 +1,5 @@
+import Link from "next/link";
+import { User } from "lucide-react";
 import { AppBarButton } from "./AppBarButton";
 
 interface AppBarActionsProps {
@@ -54,6 +56,14 @@ export function AppBarActions({
                     >
                         {hasLinkedWallet ? "Wallet Connected" : "Connect Wallet"}
                     </AppBarButton>
+
+                    <Link
+                        href="/profile"
+                        className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-700 bg-slate-900 px-4 text-sm font-semibold text-white transition hover:border-cyan-500 hover:text-cyan-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500"
+                    >
+                        <User aria-hidden="true" size={16} />
+                        Profile
+                    </Link>
 
                     <AppBarButton onClick={onLogout} variant="secondary">
                         Log out

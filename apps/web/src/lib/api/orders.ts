@@ -20,6 +20,16 @@ export interface PlaceOrderResponse {
     orderStatus: string;
     remainingQuantity: number;
   };
+  protectionReports?: Array<{
+    orderId: string;
+    action: "cancelled";
+    reason: string | null;
+    message: string;
+    displayMessage: string;
+    quoteAgeMs: number | null;
+    quotePrice: number | null;
+    priceDeviation: number | null;
+  }>;
   onchain?: {
     placeOrderTx: string | null;
     settlementTxs: Array<{ tradeId: string; transaction: string }>;
