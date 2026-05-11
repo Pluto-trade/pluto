@@ -1,13 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useMarket } from '@/hooks/useMarket';
 import { TradingLayout } from '@/components/Trading/TradingLayout';
-import {
-  TradeDebugBoundary,
-  tradeDebugError,
-  tradeDebugLog,
-} from '@/components/Trading/TradeDebugBoundary';
 
 function LoadingScreen() {
   return (
@@ -61,70 +55,19 @@ function NotFoundScreen({ symbol }: { symbol: string }) {
 }
 
 export function TradePageClient({ symbol }: { symbol: string }) {
-  tradeDebugLog('TradePageClient: render start', { symbol });
   const { market, isLoading, error, notFound } = useMarket(symbol);
 
-  useEffect(() => {
-    tradeDebugLog('TradePageClient: mounted', { symbol });
-
-    const onError = (event: ErrorEvent) => {
-      tradeDebugError('window error', {
-        message: event.message,
-        filename: event.filename,
-        lineno: event.lineno,
-        colno: event.colno,
-        error: event.error,
-      });
-    };
-
-    const onUnhandledRejection = (event: PromiseRejectionEvent) => {
-      tradeDebugError('window unhandledrejection', event.reason);
-    };
-
-    window.addEventListener('error', onError);
-    window.addEventListener('unhandledrejection', onUnhandledRejection);
-
-    return () => {
-      tradeDebugLog('TradePageClient: unmounted', { symbol });
-      window.removeEventListener('error', onError);
-      window.removeEventListener('unhandledrejection', onUnhandledRejection);
-    };
-  }, [symbol]);
-
-  useEffect(() => {
-    tradeDebugLog('TradePageClient: market hook state', {
-      symbol,
-      marketId: market?.id,
-      marketSymbol: market?.symbol,
-      isLoading,
-      error,
-      notFound,
-    });
-  }, [error, isLoading, market?.id, market?.symbol, notFound, symbol]);
-
   if (isLoading) {
-    tradeDebugLog('TradePageClient: return LoadingScreen');
     return <LoadingScreen />;
   }
 
   if (error) {
-    tradeDebugLog('TradePageClient: return ErrorScreen', { error });
     return <ErrorScreen error={error} />;
   }
 
   if (notFound) {
-    tradeDebugLog('TradePageClient: return NotFoundScreen', { symbol });
     return <NotFoundScreen symbol={symbol} />;
   }
 
-  tradeDebugLog('TradePageClient: return TradingLayout', {
-    marketId: market?.id,
-    marketSymbol: market?.symbol,
-  });
-
-  return (
-    <TradeDebugBoundary scope="TradingLayout">
-      <TradingLayout />
-    </TradeDebugBoundary>
-  );
+  return <TradingLayout />;
 }

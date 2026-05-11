@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { useTradingStore } from "@/store/tradingStore";
 import type { OrderBook } from "@/types/trading";
 import { getMarketTrades } from "@/lib/api/trades";
-import { tradeDebugError, tradeDebugLog } from "@/components/Trading/TradeDebugBoundary";
 
 // Shape of a single level as the backend sends it
 interface BackendLevel {
@@ -13,7 +12,6 @@ interface BackendLevel {
 }
 
 export const useWebSocket = () => {
-  tradeDebugLog("useWebSocket: hook start");
   const {
     selectedMarketId,
     selectedSymbol,
@@ -23,11 +21,6 @@ export const useWebSocket = () => {
     setCurrentMarket,
     setWsConnected,
   } = useTradingStore();
-  tradeDebugLog("useWebSocket: store state", {
-    selectedMarketId,
-    selectedSymbol,
-  });
-
   const FLUSH_INTERVAL_MS = 200;
 
   // Keep a stable ref to the latest marketId so the cleanup can unsubscribe
@@ -41,36 +34,24 @@ export const useWebSocket = () => {
   const flushTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
-    tradeDebugLog("useWebSocket: effect start", {
-      selectedMarketId,
-      selectedSymbol,
-    });
     // Wait until useMarket has resolved the symbol → marketId
     if (!selectedMarketId) {
-      tradeDebugLog("useWebSocket: skipped because marketId is missing");
       return;
     }
 
     // 1. Fetch initial trades history
     getMarketTrades(selectedMarketId)
       .then((trades) => {
-        tradeDebugLog("useWebSocket: initial trades loaded", {
-          count: trades.length,
-        });
         setRecentTrades(trades);
       })
       .catch((err) => {
-        tradeDebugError("useWebSocket: initial trades failed", err);
         console.error("[Trades] failed to fetch initial history:", err);
       });
 
     const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"}/ws`;
-    tradeDebugLog("useWebSocket: opening socket", { wsUrl });
     const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
-      tradeDebugLog("useWebSocket: socket open");
-      console.log("[WS] connected");
       setWsConnected(true);
       ["orderbook", "trades", "ticker"].forEach((channel) => {
         ws.send(
@@ -163,23 +144,16 @@ export const useWebSocket = () => {
     };
 
     ws.onerror = (event) => {
-      tradeDebugError("useWebSocket: socket error", event);
+      console.error("[WS] socket error:", event);
       setWsConnected(false);
     };
 
-    ws.onclose = (event) => {
-      tradeDebugLog("useWebSocket: socket close", {
-        code: event.code,
-        reason: event.reason,
-        wasClean: event.wasClean,
-      });
-      console.log("[WS] disconnected");
+    ws.onclose = () => {
       setWsConnected(false);
       stopFlushLoop();
     };
 
     return () => {
-      tradeDebugLog("useWebSocket: cleanup");
       stopFlushLoop();
       // Unsubscribe cleanly before tearing down
       if (ws.readyState === WebSocket.OPEN) {

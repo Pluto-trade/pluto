@@ -1,7 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { IChartApi, ISeriesApi, CandlestickData, Time } from 'lightweight-charts';
 import { useTradingStore } from '@/store/tradingStore';
-import { tradeDebugError, tradeDebugLog } from '../../TradeDebugBoundary';
 
 const BASE_API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
@@ -28,24 +27,15 @@ export const TradingChart: React.FC<ChartProps> = ({
 		wickDownColor = '#ff3b30',
 	} = {},
 }) => {
-	tradeDebugLog('TradingChart: render start');
 	const chartContainerRef = useRef<HTMLDivElement>(null);
 	const chartRef = useRef<IChartApi | null>(null);
 	const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
 	const candleDataRef = useRef<CandlestickData<Time>[]>([]);
 	const [chartReady, setChartReady] = useState(false);
 	const { selectedMarketId, selectedTimeframe, recentTrades } = useTradingStore();
-	tradeDebugLog('TradingChart: store state', {
-		selectedMarketId,
-		selectedTimeframe,
-		recentTradesCount: recentTrades.length,
-	});
 
 	// Initialize Chart
 	useEffect(() => {
-		tradeDebugLog('TradingChart: init effect start', {
-			hasContainer: !!chartContainerRef.current,
-		});
 		if (!chartContainerRef.current) return;
 
 		let disposed = false;
@@ -62,9 +52,7 @@ export const TradingChart: React.FC<ChartProps> = ({
 		};
 
 		const initChart = async () => {
-			tradeDebugLog('TradingChart: importing lightweight-charts');
 			const { createChart, ColorType, CandlestickSeries } = await import('lightweight-charts');
-			tradeDebugLog('TradingChart: imported lightweight-charts');
 			if (disposed || !chartContainerRef.current) return;
 
 			chart = createChart(chartContainerRef.current, {
@@ -96,15 +84,13 @@ export const TradingChart: React.FC<ChartProps> = ({
 			seriesRef.current = newSeries;
 			window.addEventListener('resize', handleResize);
 			setChartReady(true);
-			tradeDebugLog('TradingChart: chart ready');
 		};
 
 		void initChart().catch((error) => {
-			tradeDebugError('TradingChart: init failed', error);
+			console.error("Failed to initialize trading chart:", error);
 		});
 
 		return () => {
-			tradeDebugLog('TradingChart: cleanup');
 			disposed = true;
 			window.removeEventListener('resize', handleResize);
 			chartRef.current = null;
@@ -115,24 +101,12 @@ export const TradingChart: React.FC<ChartProps> = ({
 
 	// Fetch historical data
 	useEffect(() => {
-		tradeDebugLog('TradingChart: history effect start', {
-			selectedMarketId,
-			selectedTimeframe,
-			chartReady,
-			hasSeries: !!seriesRef.current,
-		});
 		if (!selectedMarketId || !chartReady || !seriesRef.current) return;
 
 		const fetchHistory = async () => {
 			try {
-				tradeDebugLog('TradingChart: fetching candle history');
 				const response = await fetch(`${BASE_API}/orderbook/${selectedMarketId}/candles?interval=${selectedTimeframe}`);
 				const history = await response.json();
-				tradeDebugLog('TradingChart: candle history response', {
-					status: response.status,
-					isArray: Array.isArray(history),
-					count: Array.isArray(history) ? history.length : undefined,
-				});
 				if (Array.isArray(history) && history.length > 0) {
 					candleDataRef.current = history;
 					seriesRef.current?.setData(history);
@@ -142,7 +116,6 @@ export const TradingChart: React.FC<ChartProps> = ({
 					seriesRef.current?.setData(propData);
 				}
 			} catch (error) {
-				tradeDebugError('TradingChart: history fetch failed', error);
 				console.error("Failed to fetch candle history:", error);
 			}
 		};
@@ -152,10 +125,6 @@ export const TradingChart: React.FC<ChartProps> = ({
 
 	// Real-time updates
 	useEffect(() => {
-		tradeDebugLog('TradingChart: realtime effect start', {
-			hasSeries: !!seriesRef.current,
-			recentTradesCount: recentTrades.length,
-		});
 		if (!seriesRef.current || recentTrades.length === 0) return;
 
 		const lastTrade = recentTrades[0];

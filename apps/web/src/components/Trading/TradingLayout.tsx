@@ -6,7 +6,6 @@ import { LeftPanel, ChartPanel, TransactionPanel } from "./transactionPanel";
 import { BottomSheet } from "./bottomPanel";
 import { OrderBook } from "./components/orderbook";
 import { RecentTrades } from "./components/recentTrades";
-import { tradeDebugLog } from "./TradeDebugBoundary";
 
 // ─── Tab types ────────────────────────────────────────────────────────────────
 
@@ -20,7 +19,6 @@ const TABS: { id: Tab; label: string }[] = [
 // ─── MarketPanel ──────────────────────────────────────────────────────────────
 
 const MarketPanel = () => {
-  tradeDebugLog("MarketPanel: render start");
   const [active, setActive] = useState<Tab>("orderbook");
 
   return (
@@ -80,9 +78,7 @@ const MarketPanel = () => {
 // ─── TradingLayout ────────────────────────────────────────────────────────────
 
 export const TradingLayout = () => {
-  tradeDebugLog("TradingLayout: render start");
   useWebSocket();
-  tradeDebugLog("TradingLayout: after useWebSocket");
 
   return (
     <div className="flex min-h-[calc(100vh-64px)] flex-col mt-1 bg-slate-950">
