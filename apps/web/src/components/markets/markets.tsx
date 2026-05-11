@@ -1,8 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Search, TrendingUp, TrendingDown, Star } from 'lucide-react';
 import Link from 'next/link';
+import { useMarkets } from '@/hooks/useApi';
 
 type MarketTab = 'ALL' | 'GAINERS' | 'LOSERS' | 'FAV';
 
@@ -17,53 +18,6 @@ interface Market {
   high24h: number;
   low24h: number;
 }
-
-const MARKETS: Market[] = [
-  {
-    id: '1',
-    symbol: 'JUP-USDC',
-    baseAsset: 'JUP',
-    quoteAsset: 'USDC',
-    price: 0.85,
-    change24h: 3.42,
-    volume24h: 850000,
-    high24h: 0.88,
-    low24h: 0.82,
-  },
-  {
-    id: '2',
-    symbol: 'WIF-USDC',
-    baseAsset: 'WIF',
-    quoteAsset: 'USDC',
-    price: 2.45,
-    change24h: -1.20,
-    volume24h: 650000,
-    high24h: 2.55,
-    low24h: 2.38,
-  },
-  {
-    id: '3',
-    symbol: 'SOL-USDT',
-    baseAsset: 'SOL',
-    quoteAsset: 'USDT',
-    price: 150.38,
-    change24h: 2.32,
-    volume24h: 980000,
-    high24h: 152.75,
-    low24h: 148.15,
-  },
-  {
-    id: '4',
-    symbol: 'SOL-USDC',
-    baseAsset: 'SOL',
-    quoteAsset: 'USDC',
-    price: 150.42,
-    change24h: 2.35,
-    volume24h: 1250000,
-    high24h: 152.80,
-    low24h: 148.20,
-  },
-];
 
 const getAssetColor = (asset: string) => {
   const colors: Record<string, string> = {
@@ -85,13 +39,29 @@ const AssetIcon = ({ asset }: { asset: string }) => (
 );
 
 export function Markets() {
+  const { data: apiMarkets = [], isLoading, error } = useMarkets();
   const [activeTab, setActiveTab] = useState<MarketTab>('ALL');
   const [search, setSearch] = useState('');
   const [favorites, setFavorites] = useState<string[]>([]);
-  const [filteredMarkets, setFilteredMarkets] = useState<Market[]>(MARKETS);
 
-  useEffect(() => {
-    let result = MARKETS;
+  const markets = useMemo<Market[]>(
+    () =>
+      apiMarkets.map((market) => ({
+        id: market.id,
+        symbol: market.symbol,
+        baseAsset: market.baseAsset,
+        quoteAsset: market.quoteAsset,
+        price: 0,
+        change24h: 0,
+        volume24h: 0,
+        high24h: 0,
+        low24h: 0,
+      })),
+    [apiMarkets],
+  );
+
+  const filteredMarkets = useMemo(() => {
+    let result = markets;
 
     if (search) {
       const query = search.toLowerCase();
@@ -110,8 +80,8 @@ export function Markets() {
         break;
     }
 
-    setFilteredMarkets(result);
-  }, [search, activeTab, favorites]);
+    return result;
+  }, [activeTab, favorites, markets, search]);
 
   const toggleFavorite = (id: string, e: React.MouseEvent) => {
     e.preventDefault();
@@ -166,7 +136,16 @@ export function Markets() {
 
       {/* Markets Table */}
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        {filteredMarkets.length === 0 ? (
+        {isLoading ? (
+          <div className="rounded-lg border border-slate-700 bg-slate-800/30 py-12 text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-cyan-500 border-t-transparent" />
+            <p className="mt-3 text-slate-400">Loading markets...</p>
+          </div>
+        ) : error ? (
+          <div className="rounded-lg border border-red-500/40 bg-red-500/10 py-12 text-center">
+            <p className="text-red-300">Failed to load markets.</p>
+          </div>
+        ) : filteredMarkets.length === 0 ? (
           <div className="rounded-lg border border-slate-700 bg-slate-800/30 py-12 text-center">
             <p className="text-slate-400">No markets found. Try adjusting your search.</p>
           </div>
@@ -206,10 +185,11 @@ export function Markets() {
                     {/* Price */}
                     <td className="px-6 py-4 text-right">
                       <p className="font-semibold text-white">
-                        ${market.price.toLocaleString('en-US', {
+                        {market.price > 0 ? '$' : ''}
+                        {market.price > 0 ? market.price.toLocaleString('en-US', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: market.price < 1 ? 8 : 2,
-                        })}
+                        }) : '-'}
                       </p>
                     </td>
 
@@ -234,27 +214,29 @@ export function Markets() {
                     {/* 24h High */}
                     <td className="px-6 py-4 text-right">
                       <p className="text-sm text-slate-300">
-                        ${market.high24h.toLocaleString('en-US', {
+                        {market.high24h > 0 ? '$' : ''}
+                        {market.high24h > 0 ? market.high24h.toLocaleString('en-US', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
-                        })}
+                        }) : '-'}
                       </p>
                     </td>
 
                     {/* 24h Low */}
                     <td className="px-6 py-4 text-right">
                       <p className="text-sm text-slate-300">
-                        ${market.low24h.toLocaleString('en-US', {
+                        {market.low24h > 0 ? '$' : ''}
+                        {market.low24h > 0 ? market.low24h.toLocaleString('en-US', {
                           minimumFractionDigits: 2,
                           maximumFractionDigits: 2,
-                        })}
+                        }) : '-'}
                       </p>
                     </td>
 
                     {/* 24h Volume */}
                     <td className="px-6 py-4 text-right">
                       <p className="text-sm text-slate-300">
-                        ${(market.volume24h / 1000000).toFixed(1)}M
+                        {market.volume24h > 0 ? `$${(market.volume24h / 1000000).toFixed(1)}M` : '-'}
                       </p>
                     </td>
 
