@@ -57,52 +57,48 @@ export class OrderbookChannel implements IWsChannel {
     // Skip expensive work if nobody is listening
     if (this.sm.subscriberCount(topic) === 0) return;
 
-    try {
-      // Fetch Redis orderbook with per-order timestamps
-      const redisSnapshot = await getOrderbook(marketId);
-      // console.log(redisSnapshot);
-      
-      const liveAsks = redisSnapshot.asks.map((ask) => {
-        return {
-          price: Number(ask.price),
-          size: Number(ask.size),
-          orders: ask.orders.map((order) => ({
-            id: order.id,
-            size: Number(order.size),
-            createdAt: Number(order.timestamp),
-          })),
-          timestamp: ask.orders.length > 0 ? Number(ask.orders[0].timestamp) : redisSnapshot.timestamp,
-        }
-      });
-      
-      const liveBids = redisSnapshot.bids.map((bid) => {
-        return {
-          price: Number(bid.price),
-          size: Number(bid.size),
-          orders: bid.orders.map((order) => ({
-            id: order.id,
-            size: Number(order.size),
-            createdAt: Number(order.timestamp),
-          })),
-          timestamp: bid.orders.length > 0 ? Number(bid.orders[0].timestamp) : redisSnapshot.timestamp,
-        }
-      });
+    // Fetch Redis orderbook with per-order timestamps
+    const redisSnapshot = await getOrderbook(marketId);
+    // console.log(redisSnapshot);
+    
+    const liveAsks = redisSnapshot.asks.map((ask) => {
+      return {
+        price: Number(ask.price),
+        size: Number(ask.size),
+        orders: ask.orders.map((order) => ({
+          id: order.id,
+          size: Number(order.size),
+          createdAt: Number(order.timestamp),
+        })),
+        timestamp: ask.orders.length > 0 ? Number(ask.orders[0].timestamp) : redisSnapshot.timestamp,
+      }
+    });
+    
+    const liveBids = redisSnapshot.bids.map((bid) => {
+      return {
+        price: Number(bid.price),
+        size: Number(bid.size),
+        orders: bid.orders.map((order) => ({
+          id: order.id,
+          size: Number(order.size),
+          createdAt: Number(order.timestamp),
+        })),
+        timestamp: bid.orders.length > 0 ? Number(bid.orders[0].timestamp) : redisSnapshot.timestamp,
+      }
+    });
 
-      const snapshot: OrderbookSnapshot = {
-        asks: liveAsks,
-        bids: liveBids,
-        timestamp: redisSnapshot.timestamp,
-      };
+    const snapshot: OrderbookSnapshot = {
+      asks: liveAsks,
+      bids: liveBids,
+      timestamp: redisSnapshot.timestamp,
+    };
 
-      this.sm.broadcast<OrderbookSnapshot>(topic, {
-        channel: CHANNEL_NAME,
-        params: { marketId },
-        data: snapshot,
-        timestamp: Date.now(),
-      });
-    } catch (error) {
-      console.error("[WS][orderbook] failed to push snapshot", { marketId, error });
-    }
+    this.sm.broadcast<OrderbookSnapshot>(topic, {
+      channel: CHANNEL_NAME,
+      params: { marketId },
+      data: snapshot,
+      timestamp: Date.now(),
+    });
   }
 }
 
