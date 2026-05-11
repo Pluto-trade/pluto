@@ -30,6 +30,7 @@ import {
 } from "@/lib/solanaSigner";
 import { useEnsureOnchainUser } from "@/hooks/useEnsureOnchainUser";
 import { useBalances, useUserProfile } from "@/hooks/useApi";
+import { tradeDebugError, tradeDebugLog } from "./TradeDebugBoundary";
 
 type Mode = "deposit" | "withdraw";
 
@@ -61,6 +62,7 @@ function formatAmount(value: number) {
 }
 
 export function FundsPanel() {
+  tradeDebugLog("FundsPanel: render start");
   const { userId } = useTradingStore();
   const { wallet, signingAddress } = useActiveSolanaWallet();
   const ensureOnchainUser = useEnsureOnchainUser();
@@ -72,6 +74,13 @@ export function FundsPanel() {
   const [amount, setAmount] = useState("");
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  tradeDebugLog("FundsPanel: hooks resolved", {
+    userId,
+    hasWallet: !!wallet,
+    signingAddress,
+    profileEmail: profile?.email,
+    balancesCount: balances.length,
+  });
 
   const mint = resolveMint(asset);
   const privySigningWallet =
@@ -91,6 +100,7 @@ export function FundsPanel() {
 
   const mutation = useMutation({
     mutationFn: async () => {
+      tradeDebugLog("FundsPanel: mutation start", { mode, asset, amount });
       setError(null);
       setMessage(null);
 
@@ -104,6 +114,10 @@ export function FundsPanel() {
       }
 
       const synced = await ensureOnchainUser(signingAddress);
+      tradeDebugLog("FundsPanel: ensureOnchainUser resolved", {
+        userId: synced.id,
+        hasCreateUserTx: !!synced.onchain?.createUserTx,
+      });
 
       const user = new PublicKey(signingAddress);
       const tokenMint = new PublicKey(mint);
@@ -123,6 +137,7 @@ export function FundsPanel() {
         vaultTokenAccount,
         amount: parsedAmount,
       });
+      tradeDebugLog("FundsPanel: built onchain tx", { mode, asset });
 
       if (mode === "deposit" && asset === "wSOL") {
         const connection = new Connection(SOLANA_RPC_URL, "confirmed");
@@ -153,6 +168,7 @@ export function FundsPanel() {
           expectedAddress: signingAddress,
           privyWallet: privySigningWallet,
         });
+        tradeDebugLog("FundsPanel: wrapped SOL");
       }
 
       const signature = await signAndSendSolanaTransaction({
@@ -160,6 +176,7 @@ export function FundsPanel() {
         expectedAddress: signingAddress,
         privyWallet: privySigningWallet,
       });
+      tradeDebugLog("FundsPanel: signed tx", { signature });
 
       const offchainPayload = {
         userId: synced.id,
@@ -181,6 +198,7 @@ export function FundsPanel() {
       queryClient.invalidateQueries({ queryKey: ["balances"] });
     },
     onError: (err) => {
+      tradeDebugError("FundsPanel: mutation failed", err);
       setError(getErrorMessage(err));
     },
   });

@@ -19,6 +19,7 @@ import {
 import { useEnsureOnchainUser } from "@/hooks/useEnsureOnchainUser";
 import { cancelOrder } from "@/lib/api/orders";
 import type { PlaceOrderResponse } from "@/lib/api/orders";
+import { tradeDebugError, tradeDebugLog } from "./TradeDebugBoundary";
 
 const TradingChart = dynamic(
   () => import("./components/charts/charts").then((mod) => mod.TradingChart),
@@ -44,7 +45,9 @@ export const LeftPanel = () => {
 };
 
 export const ChartPanel = () => {
+  tradeDebugLog("ChartPanel: render start");
   const { selectedTimeframe, setTimeframe } = useTradingStore();
+  tradeDebugLog("ChartPanel: store state", { selectedTimeframe });
 
   return (
     <div className="flex flex-col rounded-xl border-r border-[#1e222d] bg-[#081126]/90 p-2 h-full">
@@ -183,6 +186,7 @@ function formatProtectionNotice(result: PlaceOrderResponse, signature?: string) 
 }
 
 export const TransactionPanel = () => {
+  tradeDebugLog("TransactionPanel: render start");
   const {
     tradePanel,
     setOrderType,
@@ -195,6 +199,13 @@ export const TransactionPanel = () => {
     userId,
   } =
     useTradingStore();
+  tradeDebugLog("TransactionPanel: store state", {
+    selectedMarketId,
+    selectedSymbol,
+    userId,
+    side: tradePanel.side,
+    orderType: tradePanel.orderType,
+  });
   const placeOrderMutation = usePlaceOrder();
   const { data: balances = [] } = useBalances();
   const {
@@ -205,6 +216,11 @@ export const TransactionPanel = () => {
   const [txStatus, setTxStatus] = useState<string | null>(null);
   const [txStatusTone, setTxStatusTone] = useState<"success" | "warning">("success");
   const [formError, setFormError] = useState<string | null>(null);
+  tradeDebugLog("TransactionPanel: hooks resolved", {
+    balancesCount: balances.length,
+    hasActiveWallet: !!activeWallet,
+    signingAddress,
+  });
 
   const privySigningWallet =
     activeWallet?.address.toLowerCase() === signingAddress?.toLowerCase()
@@ -274,7 +290,19 @@ export const TransactionPanel = () => {
     }
 
     try {
+      tradeDebugLog("TransactionPanel: place order start", {
+        selectedMarketId,
+        signingAddress,
+        side: tradePanel.side,
+        type: tradePanel.orderType,
+        size,
+        price,
+      });
       const synced = await ensureOnchainUser(signingAddress);
+      tradeDebugLog("TransactionPanel: ensureOnchainUser resolved", {
+        userId: synced.id,
+        hasCreateUserTx: !!synced.onchain?.createUserTx,
+      });
       let acceptedOrderId: string | null = null;
 
       const result = await placeOrderMutation.mutateAsync({
@@ -289,6 +317,12 @@ export const TransactionPanel = () => {
           ...marketMints,
         },
       });
+      tradeDebugLog("TransactionPanel: placeOrder API resolved", {
+        orderId: result.orderId,
+        orderStatus: result.orderBookResult?.orderStatus,
+        hasPlaceOrderTx: !!result.onchain?.placeOrderTx,
+        warnings: result.onchain?.warnings,
+      });
       acceptedOrderId = result.orderId;
 
       if (result.onchain?.placeOrderTx) {
@@ -298,11 +332,13 @@ export const TransactionPanel = () => {
             expectedAddress: signingAddress,
             privyWallet: privySigningWallet,
           });
+          tradeDebugLog("TransactionPanel: place order signed", { signature });
 
           const protectionNotice = formatProtectionNotice(result, signature);
           setTxStatus(protectionNotice ?? `Order submitted: ${signature}`);
           setTxStatusTone(protectionNotice ? "warning" : "success");
         } catch (error) {
+          tradeDebugError("TransactionPanel: signing failed", error);
           if (acceptedOrderId) {
             await cancelOrder(acceptedOrderId).catch(() => undefined);
           }
@@ -324,6 +360,7 @@ export const TransactionPanel = () => {
 
       resetTradePanel();
     } catch (error) {
+      tradeDebugError("TransactionPanel: place order failed", error);
       setFormError(getErrorMessage(error, "Order failed."));
     }
   };

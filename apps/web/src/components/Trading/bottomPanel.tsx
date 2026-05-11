@@ -2,13 +2,21 @@ import { useUserOrders, useOpenOrders, useMarkets, useCancelOrder } from "@/hook
 import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
 import { getConfiguredMarketMints } from "@/lib/solana";
 import { FundsPanel } from "./fundsPanel";
+import { tradeDebugError, tradeDebugLog } from "./TradeDebugBoundary";
 
 export const BottomSheet = () => {
+	tradeDebugLog("BottomSheet: render start");
 	const { data: userOrders = [] } = useUserOrders();
 	const { data: openOrdersData = [] } = useOpenOrders();
 	const { data: markets = [] } = useMarkets();
 	const cancelOrderMutation = useCancelOrder();
 	const { wallet: activeWallet } = useActiveSolanaWallet();
+	tradeDebugLog("BottomSheet: hooks resolved", {
+		userOrdersCount: userOrders.length,
+		openOrdersCount: openOrdersData.length,
+		marketsCount: markets.length,
+		hasActiveWallet: !!activeWallet,
+	});
 
 	// Create a map for quick lookup: marketId -> symbol
 	const marketMap = new Map(markets.map(m => [m.id, m.symbol]));
@@ -37,14 +45,21 @@ export const BottomSheet = () => {
 	}));
 
 	const handleCancelOrder = async (orderId: string) => {
+		tradeDebugLog("BottomSheet: cancel order start", { orderId });
 		const marketMints = getConfiguredMarketMints();
 
-		await cancelOrderMutation.mutateAsync({
-			orderId,
-			userPubkey: activeWallet?.address,
-			baseMint: marketMints?.baseMint,
-			quoteMint: marketMints?.quoteMint,
-		});
+		try {
+			await cancelOrderMutation.mutateAsync({
+				orderId,
+				userPubkey: activeWallet?.address,
+				baseMint: marketMints?.baseMint,
+				quoteMint: marketMints?.quoteMint,
+			});
+			tradeDebugLog("BottomSheet: cancel order resolved", { orderId });
+		} catch (error) {
+			tradeDebugError("BottomSheet: cancel order failed", error);
+			throw error;
+		}
 	};
 
 

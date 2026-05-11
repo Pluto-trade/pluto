@@ -3,6 +3,7 @@
 import { useTradingStore } from "@/store/tradingStore";
 import type { OrderBookLevel } from "@/types/trading";
 import { useMemo } from "react";
+import { tradeDebugLog } from "../TradeDebugBoundary";
 
 // rows tro display at once per side (asks/bids)
 const DISPLAY_ROWS = 10;
@@ -87,7 +88,14 @@ const OrderRow = ({ row, side }: OrderRowProps) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export const OrderBook = ({ hideHeader = false }: { hideHeader?: boolean }) => {
+  tradeDebugLog("OrderBook: render start", { hideHeader });
   const { orderBook } = useTradingStore();
+  tradeDebugLog("OrderBook: store state", {
+    hasOrderBook: !!orderBook,
+    symbol: orderBook?.symbol,
+    bids: orderBook?.bids.length,
+    asks: orderBook?.asks.length,
+  });
 
   // ── Compute display rows ─────────────────────────────────────────────────
   const { displayAsks, displayBids, spread, spreadPct } = useMemo(() => {

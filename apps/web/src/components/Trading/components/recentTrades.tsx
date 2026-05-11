@@ -2,6 +2,7 @@
 
 import { useTradingStore } from "@/store/tradingStore";
 import type { Trade } from "@/types/trading";
+import { tradeDebugLog } from "../TradeDebugBoundary";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -62,8 +63,13 @@ export const RecentTrades = ({
 }: {
   hideHeader?: boolean;
 }) => {
+  tradeDebugLog("RecentTrades: render start", { hideHeader });
   const { recentTrades, selectedSymbol } = useTradingStore();
   const [baseAsset] = selectedSymbol.split("-");
+  tradeDebugLog("RecentTrades: store state", {
+    selectedSymbol,
+    recentTradesCount: recentTrades.length,
+  });
 
   return (
     <div className="flex flex-col h-full border border-[#1e222d] bg-[#081126]/90  shadow-lg backdrop-blur-xl overflow-hidden">
