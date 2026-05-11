@@ -47,7 +47,8 @@ export const useWebSocket = () => {
         console.error("[Trades] failed to fetch initial history:", err);
       });
 
-    const ws = new WebSocket("ws://localhost:3001/ws");
+    const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3001"}/ws`;
+    const ws = new WebSocket(wsUrl);
 
     ws.onopen = () => {
       console.log("[WS] connected");
