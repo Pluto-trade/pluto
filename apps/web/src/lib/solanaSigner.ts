@@ -202,10 +202,11 @@ export async function signAndSendSolanaTransaction({
   transaction: Uint8Array;
   expectedAddress: string;
   privyWallet?: any | null;
-  privySignAndSendTransaction: PrivySignAndSendTransaction;
+  privySignAndSendTransaction?: PrivySignAndSendTransaction;
 }): Promise<string> {
   if (
     privyWallet &&
+    privySignAndSendTransaction &&
     privyWallet.address.toLowerCase() === expectedAddress.toLowerCase()
   ) {
     const { signature } = await privySignAndSendTransaction({

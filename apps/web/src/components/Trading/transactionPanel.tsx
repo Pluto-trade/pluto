@@ -12,7 +12,6 @@ import {
   getConfiguredMarketMints,
 } from "@/lib/solana";
 import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
-import { useSignAndSendTransaction } from "@privy-io/react-auth/solana";
 import {
   getErrorMessage,
   signAndSendSolanaTransaction,
@@ -202,7 +201,6 @@ export const TransactionPanel = () => {
     wallet: activeWallet,
     signingAddress,
   } = useActiveSolanaWallet();
-  const { signAndSendTransaction } = useSignAndSendTransaction();
   const ensureOnchainUser = useEnsureOnchainUser();
   const [txStatus, setTxStatus] = useState<string | null>(null);
   const [txStatusTone, setTxStatusTone] = useState<"success" | "warning">("success");
@@ -299,7 +297,6 @@ export const TransactionPanel = () => {
             transaction: base64ToBytes(result.onchain.placeOrderTx),
             expectedAddress: signingAddress,
             privyWallet: privySigningWallet,
-            privySignAndSendTransaction: signAndSendTransaction,
           });
 
           const protectionNotice = formatProtectionNotice(result, signature);

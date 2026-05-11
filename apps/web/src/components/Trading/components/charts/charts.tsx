@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { createChart, ColorType, CandlestickSeries, IChartApi, ISeriesApi, type CandlestickData, type Time } from 'lightweight-charts';
+import React, { useEffect, useRef, useState } from 'react';
+import type { IChartApi, ISeriesApi, CandlestickData, Time } from 'lightweight-charts';
 import { useTradingStore } from '@/store/tradingStore';
 
 const BASE_API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
@@ -31,39 +31,16 @@ export const TradingChart: React.FC<ChartProps> = ({
 	const chartRef = useRef<IChartApi | null>(null);
 	const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
 	const candleDataRef = useRef<CandlestickData<Time>[]>([]);
+	const [chartReady, setChartReady] = useState(false);
 	const { selectedMarketId, selectedTimeframe, recentTrades } = useTradingStore();
 
 	// Initialize Chart
 	useEffect(() => {
 		if (!chartContainerRef.current) return;
 
-		const chart = createChart(chartContainerRef.current, {
-			layout: {
-				background: { type: ColorType.Solid, color: backgroundColor },
-				textColor,
-			},
-			grid: {
-				vertLines: { color: '#1e222d' },
-				horzLines: { color: '#1e222d' },
-			},
-			width: chartContainerRef.current.clientWidth,
-			height: chartContainerRef.current.clientHeight,
-			timeScale: {
-				timeVisible: true,
-				secondsVisible: false,
-			},
-		});
-
-		const newSeries = chart.addSeries(CandlestickSeries, {
-			upColor,
-			downColor,
-			borderVisible: false,
-			wickUpColor,
-			wickDownColor,
-		});
-
-		chartRef.current = chart;
-		seriesRef.current = newSeries;
+		let disposed = false;
+		let chart: IChartApi | null = null;
+		setChartReady(false);
 
 		const handleResize = () => {
 			if (chartContainerRef.current && chartRef.current) {
@@ -74,17 +51,55 @@ export const TradingChart: React.FC<ChartProps> = ({
 			}
 		};
 
-		window.addEventListener('resize', handleResize);
+		const initChart = async () => {
+			const { createChart, ColorType, CandlestickSeries } = await import('lightweight-charts');
+			if (disposed || !chartContainerRef.current) return;
+
+			chart = createChart(chartContainerRef.current, {
+				layout: {
+					background: { type: ColorType.Solid, color: backgroundColor },
+					textColor,
+				},
+				grid: {
+					vertLines: { color: '#1e222d' },
+					horzLines: { color: '#1e222d' },
+				},
+				width: chartContainerRef.current.clientWidth,
+				height: chartContainerRef.current.clientHeight,
+				timeScale: {
+					timeVisible: true,
+					secondsVisible: false,
+				},
+			});
+
+			const newSeries = chart.addSeries(CandlestickSeries, {
+				upColor,
+				downColor,
+				borderVisible: false,
+				wickUpColor,
+				wickDownColor,
+			});
+
+			chartRef.current = chart;
+			seriesRef.current = newSeries;
+			window.addEventListener('resize', handleResize);
+			setChartReady(true);
+		};
+
+		void initChart();
 
 		return () => {
+			disposed = true;
 			window.removeEventListener('resize', handleResize);
-			chart.remove();
+			chartRef.current = null;
+			seriesRef.current = null;
+			chart?.remove();
 		};
 	}, [backgroundColor, textColor, upColor, downColor, wickUpColor, wickDownColor]);
 
 	// Fetch historical data
 	useEffect(() => {
-		if (!selectedMarketId || !seriesRef.current) return;
+		if (!selectedMarketId || !chartReady || !seriesRef.current) return;
 
 		const fetchHistory = async () => {
 			try {
@@ -104,7 +119,7 @@ export const TradingChart: React.FC<ChartProps> = ({
 		};
 
 		fetchHistory();
-	}, [selectedMarketId, selectedTimeframe, propData]);
+	}, [selectedMarketId, selectedTimeframe, propData, chartReady]);
 
 	// Real-time updates
 	useEffect(() => {

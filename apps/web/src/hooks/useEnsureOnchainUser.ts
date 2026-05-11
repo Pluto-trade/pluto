@@ -1,8 +1,6 @@
 "use client";
 
-import { useSignAndSendTransaction } from "@privy-io/react-auth/solana";
 import { usePrivy } from "@privy-io/react-auth";
-import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
 import { syncUserForWallet } from "@/lib/api/userSync";
 import { base64ToBytes } from "@/lib/solana";
 import { signAndSendSolanaTransaction } from "@/lib/solanaSigner";
@@ -10,8 +8,6 @@ import { useTradingStore } from "@/store/tradingStore";
 
 export function useEnsureOnchainUser() {
   const { user } = usePrivy();
-  const { wallet } = useActiveSolanaWallet();
-  const { signAndSendTransaction } = useSignAndSendTransaction();
   const { setUserId } = useTradingStore();
 
   const googleAccount = user?.linkedAccounts?.find(
@@ -42,8 +38,6 @@ export function useEnsureOnchainUser() {
     await signAndSendSolanaTransaction({
       transaction: base64ToBytes(synced.onchain.createUserTx),
       expectedAddress: walletAddress,
-      privyWallet: wallet,
-      privySignAndSendTransaction: signAndSendTransaction,
     });
 
     return synced;

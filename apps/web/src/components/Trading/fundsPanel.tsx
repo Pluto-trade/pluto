@@ -8,7 +8,6 @@ import {
   getAssociatedTokenAddressSync,
   NATIVE_MINT,
 } from "@solana/spl-token";
-import { useSignAndSendTransaction } from "@privy-io/react-auth/solana";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
 import { useTradingStore } from "@/store/tradingStore";
@@ -64,7 +63,6 @@ function formatAmount(value: number) {
 export function FundsPanel() {
   const { userId } = useTradingStore();
   const { wallet, signingAddress } = useActiveSolanaWallet();
-  const { signAndSendTransaction } = useSignAndSendTransaction();
   const ensureOnchainUser = useEnsureOnchainUser();
   const queryClient = useQueryClient();
   const { data: profile } = useUserProfile();
@@ -154,7 +152,6 @@ export function FundsPanel() {
           }),
           expectedAddress: signingAddress,
           privyWallet: privySigningWallet,
-          privySignAndSendTransaction: signAndSendTransaction,
         });
       }
 
@@ -162,7 +159,6 @@ export function FundsPanel() {
         transaction: base64ToBytes(transaction),
         expectedAddress: signingAddress,
         privyWallet: privySigningWallet,
-        privySignAndSendTransaction: signAndSendTransaction,
       });
 
       const offchainPayload = {
