@@ -1,11 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useTradingStore } from "@/store/tradingStore";
 import { MarketComponent } from "./components/marketComponent";
 import { MarketStats } from "./components/marketStats";
 import { Button } from "../ui/button";
-import { TradingChart } from "./components/charts/charts";
 import { useBalances, usePlaceOrder } from "@/hooks/useApi";
 import {
   base64ToBytes,
@@ -20,6 +20,18 @@ import {
 import { useEnsureOnchainUser } from "@/hooks/useEnsureOnchainUser";
 import { cancelOrder } from "@/lib/api/orders";
 import type { PlaceOrderResponse } from "@/lib/api/orders";
+
+const TradingChart = dynamic(
+  () => import("./components/charts/charts").then((mod) => mod.TradingChart),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full min-h-[400px] items-center justify-center text-xs text-slate-500">
+        Loading chart...
+      </div>
+    ),
+  },
+);
 
 // ============ PLACEHOLDER COMPONENTS ============
 

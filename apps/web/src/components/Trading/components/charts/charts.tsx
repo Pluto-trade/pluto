@@ -30,6 +30,7 @@ export const TradingChart: React.FC<ChartProps> = ({
 	const chartContainerRef = useRef<HTMLDivElement>(null);
 	const chartRef = useRef<IChartApi | null>(null);
 	const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+	const candleDataRef = useRef<CandlestickData<Time>[]>([]);
 	const { selectedMarketId, selectedTimeframe, recentTrades } = useTradingStore();
 
 	// Initialize Chart
@@ -90,9 +91,11 @@ export const TradingChart: React.FC<ChartProps> = ({
 				const response = await fetch(`${BASE_API}/orderbook/${selectedMarketId}/candles?interval=${selectedTimeframe}`);
 				const history = await response.json();
 				if (Array.isArray(history) && history.length > 0) {
+					candleDataRef.current = history;
 					seriesRef.current?.setData(history);
 					chartRef.current?.timeScale().fitContent();
 				} else if (propData && propData.length > 0) {
+					candleDataRef.current = propData;
 					seriesRef.current?.setData(propData);
 				}
 			} catch (error) {
@@ -120,9 +123,9 @@ export const TradingChart: React.FC<ChartProps> = ({
 		const tradeTimeSec = Math.floor(lastTrade.timestamp / 1000);
 		const candleTimeSec = Math.floor(tradeTimeSec / intervalSec) * intervalSec;
 
-		// Get the last data point to maintain OHLC
-		// @ts-ignore - access internal data to avoid full re-render or complex state management
-		const data = seriesRef.current.data();
+		// Maintain our own candle cache because the chart series does not expose
+		// a stable public data() API across lightweight-charts versions.
+		const data = candleDataRef.current;
 		const lastCandle = data.length > 0 ? data[data.length - 1] : null;
 
 		if (lastCandle && (candleTimeSec as any) < lastCandle.time) {
@@ -133,22 +136,26 @@ export const TradingChart: React.FC<ChartProps> = ({
 		if (lastCandle && "open" in lastCandle && (candleTimeSec as any) === lastCandle.time) {
 			const candle = lastCandle as CandlestickData<Time>;
 			// Update existing candle
-			seriesRef.current.update({
+			const nextCandle = {
 				time: candleTimeSec as any,
 				open: candle.open,
 				high: Math.max(candle.high, lastTrade.price),
 				low: Math.min(candle.low, lastTrade.price),
 				close: lastTrade.price,
-			});
+			};
+			candleDataRef.current[candleDataRef.current.length - 1] = nextCandle;
+			seriesRef.current.update(nextCandle);
 		} else {
 			// Start new candle
-			seriesRef.current.update({
+			const nextCandle = {
 				time: candleTimeSec as any,
 				open: lastTrade.price,
 				high: lastTrade.price,
 				low: lastTrade.price,
 				close: lastTrade.price,
-			});
+			};
+			candleDataRef.current = [...candleDataRef.current, nextCandle];
+			seriesRef.current.update(nextCandle);
 		}
 	}, [recentTrades, selectedTimeframe]);
 
