@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import { createChart, ColorType, CandlestickSeries, IChartApi, ISeriesApi, type CandlestickData, type Time } from 'lightweight-charts';
 import { useTradingStore } from '@/store/tradingStore';
 
+const BASE_API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
 export interface ChartProps {
 	data?: any[];
 	colors?: {
@@ -85,7 +87,7 @@ export const TradingChart: React.FC<ChartProps> = ({
 
 		const fetchHistory = async () => {
 			try {
-				const response = await fetch(`http://localhost:3001/orderbook/${selectedMarketId}/candles?interval=${selectedTimeframe}`);
+				const response = await fetch(`${BASE_API}/orderbook/${selectedMarketId}/candles?interval=${selectedTimeframe}`);
 				const history = await response.json();
 				if (Array.isArray(history) && history.length > 0) {
 					seriesRef.current?.setData(history);
