@@ -1,9 +1,12 @@
 import Image from "next/image";
+import Link from "next/link";
 
 export function AppBarBrand() {
     return (
-        <div 
-        className=""
+        <Link
+            href="/"
+            aria-label="Go to home"
+            className="inline-flex items-center transition-opacity hover:opacity-90"
             style={{
                 fontSize: "2rem",
                 fontWeight: 600,
@@ -17,6 +20,6 @@ export function AppBarBrand() {
                 width={200}
                 height={40}
             />
-        </div>
+        </Link>
     );
 }
