@@ -1,7 +1,7 @@
 import { useTradingStore } from "@/store/tradingStore";
 
 export const MarketStats = () => {
-	const { currentMarket } = useTradingStore();
+	const currentMarket = useTradingStore((state) => state.currentMarket);
 
 	const formatPrice = (price: number | null | undefined) => {
 		if (price === null || price === undefined) return "---";

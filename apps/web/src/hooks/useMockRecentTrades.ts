@@ -55,7 +55,9 @@ function makeTrade(symbol: string, offsetMs = 0): Trade {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useMockRecentTrades() {
-  const { selectedSymbol, addRecentTrade, clearTrades } = useTradingStore();
+  const selectedSymbol = useTradingStore((state) => state.selectedSymbol);
+  const addRecentTrade = useTradingStore((state) => state.addRecentTrade);
+  const clearTrades = useTradingStore((state) => state.clearTrades);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {

@@ -62,7 +62,8 @@ export const RecentTrades = ({
 }: {
   hideHeader?: boolean;
 }) => {
-  const { recentTrades, selectedSymbol } = useTradingStore();
+  const recentTrades = useTradingStore((state) => state.recentTrades);
+  const selectedSymbol = useTradingStore((state) => state.selectedSymbol);
   const [baseAsset] = selectedSymbol.split("-");
 
   return (

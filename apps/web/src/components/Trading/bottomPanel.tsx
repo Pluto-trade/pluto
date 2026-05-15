@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { useUserOrders, useOpenOrders, useMarkets, useCancelOrder } from "@/hooks/useApi";
 import { useActiveSolanaWallet } from "@/hooks/useActiveSolanaWallet";
 import { getConfiguredMarketMints } from "@/lib/solana";
@@ -10,31 +11,63 @@ export const BottomSheet = () => {
 	const cancelOrderMutation = useCancelOrder();
 	const { wallet: activeWallet } = useActiveSolanaWallet();
 
-	// Create a map for quick lookup: marketId -> symbol
-	const marketMap = new Map(markets.map(m => [m.id, m.symbol]));
+	const marketMap = useMemo(
+		() => new Map(markets.map((market) => [market.id, market.symbol])),
+		[markets],
+	);
 
-	const openOrders = openOrdersData.map(order => ({
-		time: new Date(order.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-		pair: marketMap.get(order.symbol) || order.symbol, // Use symbol if found, else fallback to the ID/stored symbol
-		side: order.side,
-		type: order.type,
-		price: order.price?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || 'MARKET',
-		size: order.size.toFixed(4),
-		filled: order.filled.toFixed(4),
-		total: order.price ? (order.price * order.size).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' USD' : '-',
-		action: 'Cancel',
-		id: order.id
-	}));
+	const openOrders = useMemo(
+		() =>
+			openOrdersData.map((order) => ({
+				time: new Date(order.timestamp).toLocaleTimeString("en-GB", {
+					hour: "2-digit",
+					minute: "2-digit",
+					second: "2-digit",
+				}),
+				pair: marketMap.get(order.symbol) || order.symbol,
+				side: order.side,
+				type: order.type,
+				price:
+					order.price?.toLocaleString("en-US", {
+						minimumFractionDigits: 2,
+						maximumFractionDigits: 2,
+					}) || "MARKET",
+				size: order.size.toFixed(4),
+				filled: order.filled.toFixed(4),
+				total: order.price
+					? `${(order.price * order.size).toLocaleString("en-US", {
+							minimumFractionDigits: 2,
+							maximumFractionDigits: 2,
+						})} USD`
+					: "-",
+				action: "Cancel",
+				id: order.id,
+			})),
+		[marketMap, openOrdersData],
+	);
 
-	const formattedOrderHistory = userOrders.map(order => ({
-		time: new Date(order.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-		pair: marketMap.get(order.symbol) || order.symbol,
-		side: order.side,
-		type: order.type,
-		price: order.price?.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || 'MARKET',
-		size: order.size.toFixed(4),
-		status: order.status
-	}));
+	const formattedOrderHistory = useMemo(
+		() =>
+			userOrders.map((order) => ({
+				id: order.id,
+				time: new Date(order.timestamp).toLocaleTimeString("en-GB", {
+					hour: "2-digit",
+					minute: "2-digit",
+					second: "2-digit",
+				}),
+				pair: marketMap.get(order.symbol) || order.symbol,
+				side: order.side,
+				type: order.type,
+				price:
+					order.price?.toLocaleString("en-US", {
+						minimumFractionDigits: 2,
+						maximumFractionDigits: 2,
+					}) || "MARKET",
+				size: order.size.toFixed(4),
+				status: order.status,
+			})),
+		[marketMap, userOrders],
+	);
 
 	const handleCancelOrder = async (orderId: string) => {
 		const marketMints = getConfiguredMarketMints();
@@ -73,8 +106,8 @@ export const BottomSheet = () => {
 								No open orders.
 							</div>
 						) : (
-							openOrders.map((item, i) => (
-								<div key={i} className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr_1.5fr_0.8fr] items-center text-[11px] text-slate-300 py-2.5 border-b border-[#2a2e39]/30 last:border-0 hover:bg-[#1e222d]/50 transition">
+							openOrders.map((item) => (
+								<div key={item.id} className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr_1.5fr_0.8fr] items-center text-[11px] text-slate-300 py-2.5 border-b border-[#2a2e39]/30 last:border-0 hover:bg-[#1e222d]/50 transition">
 									<span>{item.time}</span>
 									<span className="text-white">{item.pair}</span>
 									<span className={item.side === 'BUY' ? 'text-[#00c076]' : 'text-[#ff3b30]'}>{item.side}</span>
@@ -121,8 +154,8 @@ export const BottomSheet = () => {
 								No order history found.
 							</div>
 						) : (
-							formattedOrderHistory.map((item, i) => (
-								<div key={i} className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr] items-center text-[11px] text-slate-300 py-2.5 border-b border-[#2a2e39]/30 last:border-0 hover:bg-[#1e222d]/50 transition">
+							formattedOrderHistory.map((item) => (
+								<div key={item.id} className="grid grid-cols-[1fr_1.2fr_0.8fr_1fr_1.2fr_1fr_1fr] items-center text-[11px] text-slate-300 py-2.5 border-b border-[#2a2e39]/30 last:border-0 hover:bg-[#1e222d]/50 transition">
 									<span>{item.time}</span>
 									<span className="text-white">{item.pair}</span>
 									<span className={item.side === 'BUY' ? 'text-[#00c076]' : 'text-[#ff3b30]'}>{item.side}</span>

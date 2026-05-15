@@ -12,16 +12,14 @@ interface BackendLevel {
 }
 
 export const useWebSocket = () => {
-  const {
-    selectedMarketId,
-    selectedSymbol,
-    setOrderBook,
-    addRecentTrade,
-    setRecentTrades,
-    setCurrentMarket,
-    setWsConnected,
-  } = useTradingStore();
-  const FLUSH_INTERVAL_MS = 200;
+  const selectedMarketId = useTradingStore((state) => state.selectedMarketId);
+  const selectedSymbol = useTradingStore((state) => state.selectedSymbol);
+  const setOrderBook = useTradingStore((state) => state.setOrderBook);
+  const addRecentTrades = useTradingStore((state) => state.addRecentTrades);
+  const setRecentTrades = useTradingStore((state) => state.setRecentTrades);
+  const setCurrentMarket = useTradingStore((state) => state.setCurrentMarket);
+  const setWsConnected = useTradingStore((state) => state.setWsConnected);
+  const FLUSH_INTERVAL_MS = 500;
 
   // Keep a stable ref to the latest marketId so the cleanup can unsubscribe
   // the correct market even if the effect re-runs before the socket closes.
@@ -75,9 +73,7 @@ export const useWebSocket = () => {
         if (tradesBufferRef.current.length > 0) {
           const buffered = tradesBufferRef.current;
           tradesBufferRef.current = [];
-          for (const trade of buffered) {
-            addRecentTrade(trade);
-          }
+          addRecentTrades(buffered);
         }
 
         if (tickerBufferRef.current) {
@@ -174,7 +170,8 @@ export const useWebSocket = () => {
     selectedMarketId,
     selectedSymbol,
     setOrderBook,
-    addRecentTrade,
+    addRecentTrades,
+    setRecentTrades,
     setCurrentMarket,
     setWsConnected,
   ]);

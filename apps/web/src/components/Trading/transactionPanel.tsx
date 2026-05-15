@@ -44,7 +44,8 @@ export const LeftPanel = () => {
 };
 
 export const ChartPanel = () => {
-  const { selectedTimeframe, setTimeframe } = useTradingStore();
+  const selectedTimeframe = useTradingStore((state) => state.selectedTimeframe);
+  const setTimeframe = useTradingStore((state) => state.setTimeframe);
 
   return (
     <div className="flex flex-col rounded-xl border-r border-[#1e222d] bg-[#081126]/90 p-2 h-full">
@@ -76,7 +77,7 @@ export const ChartPanel = () => {
 };
 
 export const OrderBookPanel = () => {
-  const { orderBook } = useTradingStore();
+  const orderBook = useTradingStore((state) => state.orderBook);
 
   if (!orderBook) {
     return (
@@ -121,7 +122,7 @@ export const OrderBookPanel = () => {
 };
 
 export const RecentTradesPanel = () => {
-  const { recentTrades } = useTradingStore();
+  const recentTrades = useTradingStore((state) => state.recentTrades);
 
   return (
     <div className="flex flex-col bg-slate-900 border-r border-slate-700 max-h-96">
@@ -183,18 +184,15 @@ function formatProtectionNotice(result: PlaceOrderResponse, signature?: string) 
 }
 
 export const TransactionPanel = () => {
-  const {
-    tradePanel,
-    setOrderType,
-    setTradeSide,
-    setPrice,
-    setSize,
-    resetTradePanel,
-    selectedMarketId,
-    selectedSymbol,
-    userId,
-  } =
-    useTradingStore();
+  const tradePanel = useTradingStore((state) => state.tradePanel);
+  const setOrderType = useTradingStore((state) => state.setOrderType);
+  const setTradeSide = useTradingStore((state) => state.setTradeSide);
+  const setPrice = useTradingStore((state) => state.setPrice);
+  const setSize = useTradingStore((state) => state.setSize);
+  const resetTradePanel = useTradingStore((state) => state.resetTradePanel);
+  const selectedMarketId = useTradingStore((state) => state.selectedMarketId);
+  const selectedSymbol = useTradingStore((state) => state.selectedSymbol);
+  const userId = useTradingStore((state) => state.userId);
   const placeOrderMutation = usePlaceOrder();
   const { data: balances = [] } = useBalances();
   const {

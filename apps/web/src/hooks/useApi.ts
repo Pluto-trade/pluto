@@ -15,7 +15,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001';
 // ============ QUERIES ============
 
 export const useOpenOrders = () => {
-  const { userId } = useTradingStore();
+  const userId = useTradingStore((state) => state.userId);
 
   return useQuery({
     queryKey: ['open-orders', userId],
@@ -26,7 +26,7 @@ export const useOpenOrders = () => {
 };
 
 export const useUserOrders = (limit = 100) => {
-  const { userId } = useTradingStore();
+  const userId = useTradingStore((state) => state.userId);
 
   return useQuery({
     queryKey: ['user-orders', userId, limit],
@@ -37,7 +37,7 @@ export const useUserOrders = (limit = 100) => {
 };
 
 export const useUserProfile = () => {
-  const { userId } = useTradingStore();
+  const userId = useTradingStore((state) => state.userId);
 
   return useQuery({
     queryKey: ['user-profile', userId],
@@ -59,7 +59,7 @@ export const useMarkets = () => {
 };
 
 export const useBalances = () => {
-  const { userId } = useTradingStore();
+  const userId = useTradingStore((state) => state.userId);
 
   return useQuery({
     queryKey: ['balances', userId],

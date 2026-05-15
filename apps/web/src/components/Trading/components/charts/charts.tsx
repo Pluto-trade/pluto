@@ -32,7 +32,9 @@ export const TradingChart: React.FC<ChartProps> = ({
 	const seriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
 	const candleDataRef = useRef<CandlestickData<Time>[]>([]);
 	const [chartReady, setChartReady] = useState(false);
-	const { selectedMarketId, selectedTimeframe, recentTrades } = useTradingStore();
+	const selectedMarketId = useTradingStore((state) => state.selectedMarketId);
+	const selectedTimeframe = useTradingStore((state) => state.selectedTimeframe);
+	const latestTrade = useTradingStore((state) => state.recentTrades[0]);
 
 	// Initialize Chart
 	useEffect(() => {
@@ -125,9 +127,8 @@ export const TradingChart: React.FC<ChartProps> = ({
 
 	// Real-time updates
 	useEffect(() => {
-		if (!seriesRef.current || recentTrades.length === 0) return;
+		if (!seriesRef.current || !latestTrade) return;
 
-		const lastTrade = recentTrades[0];
 		const timeframeMap: Record<string, number> = {
 			"1m": 60,
 			"5m": 300,
@@ -137,7 +138,7 @@ export const TradingChart: React.FC<ChartProps> = ({
 			"1d": 86400,
 		};
 		const intervalSec = timeframeMap[selectedTimeframe] || 60;
-		const tradeTimeSec = Math.floor(lastTrade.timestamp / 1000);
+		const tradeTimeSec = Math.floor(latestTrade.timestamp / 1000);
 		const candleTimeSec = Math.floor(tradeTimeSec / intervalSec) * intervalSec;
 
 		// Maintain our own candle cache because the chart series does not expose
@@ -156,9 +157,9 @@ export const TradingChart: React.FC<ChartProps> = ({
 			const nextCandle = {
 				time: candleTimeSec as any,
 				open: candle.open,
-				high: Math.max(candle.high, lastTrade.price),
-				low: Math.min(candle.low, lastTrade.price),
-				close: lastTrade.price,
+				high: Math.max(candle.high, latestTrade.price),
+				low: Math.min(candle.low, latestTrade.price),
+				close: latestTrade.price,
 			};
 			candleDataRef.current[candleDataRef.current.length - 1] = nextCandle;
 			seriesRef.current.update(nextCandle);
@@ -166,15 +167,15 @@ export const TradingChart: React.FC<ChartProps> = ({
 			// Start new candle
 			const nextCandle = {
 				time: candleTimeSec as any,
-				open: lastTrade.price,
-				high: lastTrade.price,
-				low: lastTrade.price,
-				close: lastTrade.price,
+				open: latestTrade.price,
+				high: latestTrade.price,
+				low: latestTrade.price,
+				close: latestTrade.price,
 			};
 			candleDataRef.current = [...candleDataRef.current, nextCandle];
 			seriesRef.current.update(nextCandle);
 		}
-	}, [recentTrades, selectedTimeframe]);
+	}, [latestTrade, selectedTimeframe]);
 
 	return <div ref={chartContainerRef} className="w-full h-full min-h-[400px]" />;
 };

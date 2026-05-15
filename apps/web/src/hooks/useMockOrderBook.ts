@@ -77,7 +77,8 @@ function rebuildBook(midPrice: number, symbol: string): OrderBook {
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 
 export function useMockOrderBook() {
-  const { selectedSymbol, setOrderBook } = useTradingStore();
+  const selectedSymbol = useTradingStore((state) => state.selectedSymbol);
+  const setOrderBook = useTradingStore((state) => state.setOrderBook);
 
   const midRef = useRef(MID_PRICE);
   const bookRef = useRef<OrderBook>(rebuildBook(MID_PRICE, selectedSymbol));

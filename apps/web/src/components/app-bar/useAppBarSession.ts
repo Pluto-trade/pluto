@@ -10,7 +10,7 @@ export function useAppBarSession() {
     const { ready, authenticated, logout: privyLogout, user, linkWallet } = usePrivy();
     const { initOAuth, loading } = useLoginWithOAuth();
     const { phantomAddress } = useActiveSolanaWallet();
-    const { setUserId } = useTradingStore();
+    const setUserId = useTradingStore((state) => state.setUserId);
     const lastSyncedKey = useRef<string | null>(null);
     const inFlightSyncKey = useRef<string | null>(null);
     const [oauthError, setOauthError] = useState<string | null>(null);

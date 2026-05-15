@@ -87,7 +87,7 @@ const OrderRow = ({ row, side }: OrderRowProps) => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export const OrderBook = ({ hideHeader = false }: { hideHeader?: boolean }) => {
-  const { orderBook } = useTradingStore();
+  const orderBook = useTradingStore((state) => state.orderBook);
 
   // ── Compute display rows ─────────────────────────────────────────────────
   const { displayAsks, displayBids, spread, spreadPct } = useMemo(() => {

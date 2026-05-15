@@ -25,7 +25,8 @@ interface UseMarketResult {
 }
 
 export function useMarket(symbolFromUrl: string): UseMarketResult {
-  const { setSelectedMarketId, setSelectedSymbol } = useTradingStore();
+  const setSelectedMarketId = useTradingStore((state) => state.setSelectedMarketId);
+  const setSelectedSymbol = useTradingStore((state) => state.setSelectedSymbol);
   const normalizedSymbol = normalizeSymbol(symbolFromUrl);
 
   const {

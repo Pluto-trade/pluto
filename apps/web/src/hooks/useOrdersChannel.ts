@@ -21,7 +21,7 @@ type OrdersChannelPayload = {
 };
 
 export function useOrdersChannel() {
-  const { userId } = useTradingStore();
+  const userId = useTradingStore((state) => state.userId);
   const [activeOrders, setActiveOrders] = useState<ActiveOrderSnapshot[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -61,7 +61,7 @@ function formatAmount(value: number) {
 }
 
 export function FundsPanel() {
-  const { userId } = useTradingStore();
+  const userId = useTradingStore((state) => state.userId);
   const { wallet, signingAddress } = useActiveSolanaWallet();
   const ensureOnchainUser = useEnsureOnchainUser();
   const queryClient = useQueryClient();

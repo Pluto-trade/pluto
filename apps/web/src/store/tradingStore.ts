@@ -27,6 +27,7 @@ interface TradingState {
   recentTrades: Trade[];
   setRecentTrades: (trades: Trade[]) => void;
   addRecentTrade: (trade: Trade) => void;
+  addRecentTrades: (trades: Trade[]) => void;
   clearTrades: () => void;
 
   // Price Ticker (WebSocket)
@@ -62,12 +63,16 @@ const initialTradePanel = {
   size: "",
 };
 
+function getTradeKey(trade: Trade) {
+  return trade.id || `${trade.symbol}:${trade.price}:${trade.size}:${trade.timestamp}`;
+}
+
 function uniqueTrades(trades: Trade[]) {
   const seen = new Set<string>();
   const deduped: Trade[] = [];
 
   for (const trade of trades) {
-    const key = trade.id || `${trade.symbol}:${trade.price}:${trade.size}:${trade.timestamp}`;
+    const key = getTradeKey(trade);
     if (seen.has(key)) continue;
     seen.add(key);
     deduped.push(trade);
@@ -111,16 +116,33 @@ export const useTradingStore = create<TradingState>((set) => ({
   setRecentTrades: (recentTrades) => set({ recentTrades: uniqueTrades(recentTrades) }),
   addRecentTrade: (trade) =>
     set((state) => {
-      const tradeKey = trade.id || `${trade.symbol}:${trade.price}:${trade.size}:${trade.timestamp}`;
-      const alreadyExists = state.recentTrades.some((item) => {
-        const itemKey = item.id || `${item.symbol}:${item.price}:${item.size}:${item.timestamp}`;
-        return itemKey === tradeKey;
-      });
+      const tradeKey = getTradeKey(trade);
+      const alreadyExists = state.recentTrades.some((item) => getTradeKey(item) === tradeKey);
 
       if (alreadyExists) return state;
 
       return {
-        recentTrades: uniqueTrades([trade, ...state.recentTrades]).slice(0, 50),
+        recentTrades: [trade, ...state.recentTrades].slice(0, 50),
+      };
+    }),
+  addRecentTrades: (trades) =>
+    set((state) => {
+      if (trades.length === 0) return state;
+
+      const seen = new Set(state.recentTrades.map(getTradeKey));
+      const newTrades: Trade[] = [];
+
+      for (const trade of trades) {
+        const key = getTradeKey(trade);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        newTrades.push(trade);
+      }
+
+      if (newTrades.length === 0) return state;
+
+      return {
+        recentTrades: [...newTrades, ...state.recentTrades].slice(0, 50),
       };
     }),
   clearTrades: () => set({ recentTrades: [] }),

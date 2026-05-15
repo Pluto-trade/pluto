@@ -8,7 +8,7 @@ import { useTradingStore } from "@/store/tradingStore";
 
 export function useEnsureOnchainUser() {
   const { user } = usePrivy();
-  const { setUserId } = useTradingStore();
+  const setUserId = useTradingStore((state) => state.setUserId);
 
   const googleAccount = user?.linkedAccounts?.find(
     (account) => account.type === "google_oauth",

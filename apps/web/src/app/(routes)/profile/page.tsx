@@ -33,7 +33,7 @@ function formatTime(timestamp: number) {
 }
 
 export default function ProfilePage() {
-  const { userId } = useTradingStore();
+  const userId = useTradingStore((state) => state.userId);
   const profileQuery = useUserProfile();
   const balancesQuery = useBalances();
   const openOrdersQuery = useOpenOrders();
